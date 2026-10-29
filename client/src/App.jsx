@@ -10,6 +10,7 @@ import Families from './pages/Families';
 import FamilyForm from './pages/FamilyForm';
 import FamilyDetails from './pages/FamilyDetails';
 import Members from './pages/Members';
+import Parties from './pages/Parties';
 import Reports from './pages/Reports';
 import AuditLogs from './pages/AuditLogs';
 import UsersPage from './pages/UsersPage';
@@ -56,6 +57,7 @@ function App() {
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="wards" element={<Wards />} />
+            <Route path="parties" element={<Parties />} />
             <Route path="families" element={<Families />} />
             <Route path="families/new" element={<FamilyForm />} />
             <Route path="families/:id" element={<FamilyDetails />} />

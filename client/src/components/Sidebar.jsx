@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
   MapPin,
+  Flag,
   Home,
   Users,
   FileBarChart,
@@ -19,6 +20,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
   const navItems = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, roles: ['superadmin', 'ward_officer', 'data_operator', 'auditor'] },
     { name: 'Ward Management', path: '/wards', icon: MapPin, roles: ['superadmin', 'ward_officer', 'auditor'] },
+    { name: 'Political Parties', path: '/parties', icon: Flag, roles: ['superadmin', 'ward_officer', 'data_operator', 'auditor'] },
     { name: 'Family Management', path: '/families', icon: Home, roles: ['superadmin', 'ward_officer', 'data_operator', 'auditor'] },
     { name: 'Member Management', path: '/members', icon: Users, roles: ['superadmin', 'ward_officer', 'data_operator', 'auditor'] },
     { name: 'Ward Reports', path: '/reports', icon: FileBarChart, roles: ['superadmin', 'ward_officer', 'auditor'] },

@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const Ward = require('../models/Ward');
+const Party = require('../models/Party');
 const Family = require('../models/Family');
 const Member = require('../models/Member');
 const AuditLog = require('../models/AuditLog');
@@ -17,6 +18,7 @@ const seedData = async () => {
     await Promise.all([
       User.deleteMany({}),
       Ward.deleteMany({}),
+      Party.deleteMany({}),
       Family.deleteMany({}),
       Member.deleteMany({}),
       AuditLog.deleteMany({}),
@@ -47,7 +49,42 @@ const seedData = async () => {
 
     console.log('[Seed] Admin & Operator users created');
 
-    // 2. Create Wards
+    // 2. Create Default Political Parties
+    const parties = await Party.create([
+      {
+        partyName: 'Dravida Munnetra Kazhagam',
+        partyCode: 'DMK',
+        description: 'Major regional democratic political party',
+        createdBy: admin._id,
+      },
+      {
+        partyName: 'All India Anna Dravida Munnetra Kazhagam',
+        partyCode: 'AIADMK',
+        description: 'Major regional democratic political party',
+        createdBy: admin._id,
+      },
+      {
+        partyName: 'Bharatiya Janata Party',
+        partyCode: 'BJP',
+        description: 'National political party',
+        createdBy: admin._id,
+      },
+      {
+        partyName: 'Indian National Congress',
+        partyCode: 'INC',
+        description: 'National political party',
+        createdBy: admin._id,
+      },
+      {
+        partyName: 'Aam Aadmi Party',
+        partyCode: 'AAP',
+        description: 'Recognized national political party',
+        createdBy: admin._id,
+      },
+    ]);
+    console.log(`[Seed] ${parties.length} Political Parties created`);
+
+    // 3. Create Wards
     const wards = await Ward.create([
       {
         wardCode: 'WARD-01',
@@ -93,7 +130,7 @@ const seedData = async () => {
     operator.assignedWards = [wards[0]._id, wards[1]._id];
     await operator.save();
 
-    // 3. Seed Realistic Families and Members for Ward 1
+    // 4. Seed Realistic Families and Members for Ward 1
     const ward1 = wards[0];
     const sampleFamiliesData = [
       {
@@ -104,11 +141,53 @@ const seedData = async () => {
         locality: 'Civil Lines',
         phone: '9876543210',
         status: 'complete',
+        religion: 'Hindu',
+        boothNo: 'Booth 01',
         members: [
-          { name: 'Rajesh Kumar Verma', gender: 'male', age: 48, rel: 'head', occ: 'School Teacher' },
-          { name: 'Sunita Verma', gender: 'female', age: 45, rel: 'spouse', occ: 'Homemaker' },
-          { name: 'Amit Verma', gender: 'male', age: 21, rel: 'son', occ: 'Student' },
-          { name: 'Pooja Verma', gender: 'female', age: 17, rel: 'daughter', occ: 'Student' },
+          {
+            sl: '101',
+            name: 'Rajesh Kumar Verma',
+            voterId: 'TN/01/001/1001',
+            guardian: 'Ram Prasad Verma',
+            gender: 'male',
+            age: 48,
+            rel: 'head',
+            occ: 'School Teacher',
+            party: parties[0]._id,
+          },
+          {
+            sl: '102',
+            name: 'Sunita Verma',
+            voterId: 'TN/01/001/1002',
+            guardian: 'Rajesh Kumar Verma',
+            gender: 'female',
+            age: 45,
+            rel: 'spouse',
+            occ: 'Homemaker',
+            party: parties[0]._id,
+          },
+          {
+            sl: '103',
+            name: 'Amit Verma',
+            voterId: 'TN/01/001/1003',
+            guardian: 'Rajesh Kumar Verma',
+            gender: 'male',
+            age: 21,
+            rel: 'son',
+            occ: 'Student',
+            party: parties[2]._id,
+          },
+          {
+            sl: '104',
+            name: 'Pooja Verma',
+            voterId: '',
+            guardian: 'Rajesh Kumar Verma',
+            gender: 'female',
+            age: 17,
+            rel: 'daughter',
+            occ: 'Student',
+            party: null,
+          },
         ],
       },
       {
@@ -119,39 +198,42 @@ const seedData = async () => {
         locality: 'Station Road',
         phone: '9812345678',
         status: 'complete',
+        religion: 'Hindu',
+        boothNo: 'Booth 01',
         members: [
-          { name: 'Anand Prakash Mehta', gender: 'male', age: 62, rel: 'head', occ: 'Retired Officer' },
-          { name: 'Kavita Mehta', gender: 'female', age: 58, rel: 'spouse', occ: 'Homemaker' },
-          { name: 'Rohit Mehta', gender: 'male', age: 32, rel: 'son', occ: 'Software Engineer' },
-        ],
-      },
-      {
-        head: 'Meenakshi Sundaram',
-        label: 'Sundaram Nilayam',
-        house: '78',
-        street: 'Temple View Marg',
-        locality: 'Civil Lines',
-        phone: '9845012345',
-        status: 'incomplete',
-        members: [
-          { name: 'Meenakshi Sundaram', gender: 'female', age: 54, rel: 'head', occ: 'Accountant' },
-          { name: 'Karthik Sundaram', gender: 'male', age: 26, rel: 'son', occ: 'Pharmacist' },
-        ],
-      },
-      {
-        head: 'Gurpreet Singh Gill',
-        label: 'Gill Farm House',
-        house: '104',
-        street: 'Old Court Lane',
-        locality: 'Station Road',
-        phone: '9789012345',
-        status: 'complete',
-        members: [
-          { name: 'Gurpreet Singh Gill', gender: 'male', age: 50, rel: 'head', occ: 'Business' },
-          { name: 'Jasleen Kaur Gill', gender: 'female', age: 46, rel: 'spouse', occ: 'Lecturer' },
-          { name: 'Simran Gill', gender: 'female', age: 22, rel: 'daughter', occ: 'Medical Intern' },
-          { name: 'Harjot Gill', gender: 'male', age: 19, rel: 'son', occ: 'Student' },
-          { name: 'Darshan Singh', gender: 'male', age: 76, rel: 'father', occ: 'Retired' },
+          {
+            sl: '105',
+            name: 'Anand Prakash Mehta',
+            voterId: 'TN/01/001/1005',
+            guardian: 'Sunder Lal Mehta',
+            gender: 'male',
+            age: 62,
+            rel: 'head',
+            occ: 'Retired Officer',
+            party: parties[3]._id,
+          },
+          {
+            sl: '106',
+            name: 'Kavita Mehta',
+            voterId: 'TN/01/001/1006',
+            guardian: 'Anand Prakash Mehta',
+            gender: 'female',
+            age: 58,
+            rel: 'spouse',
+            occ: 'Homemaker',
+            party: parties[3]._id,
+          },
+          {
+            sl: '107',
+            name: 'Rohit Mehta',
+            voterId: 'TN/01/001/1007',
+            guardian: 'Anand Prakash Mehta',
+            gender: 'male',
+            age: 32,
+            rel: 'son',
+            occ: 'Software Engineer',
+            party: parties[4]._id,
+          },
         ],
       },
       {
@@ -162,8 +244,101 @@ const seedData = async () => {
         locality: 'Civil Lines',
         phone: '9654321987',
         status: 'incomplete',
+        religion: 'Muslim',
+        boothNo: 'Booth 02',
         members: [
-          { name: 'Farhan Ahmad Khan', gender: 'male', age: 39, rel: 'head', occ: 'Retailer' },
+          {
+            sl: '201',
+            name: 'Farhan Ahmad Khan',
+            voterId: 'TN/01/001/1008',
+            guardian: 'Bashir Ahmad Khan',
+            gender: 'male',
+            age: 39,
+            rel: 'head',
+            occ: 'Retailer',
+            party: parties[0]._id,
+          },
+        ],
+      },
+      {
+        head: 'Gurpreet Singh Gill',
+        label: 'Gill Farm House',
+        house: '104',
+        street: 'Old Court Lane',
+        locality: 'Station Road',
+        phone: '9789012345',
+        status: 'complete',
+        religion: 'Sikh',
+        boothNo: 'Booth 02',
+        members: [
+          {
+            sl: '202',
+            name: 'Gurpreet Singh Gill',
+            voterId: 'TN/01/001/1009',
+            guardian: 'Darshan Singh Gill',
+            gender: 'male',
+            age: 50,
+            rel: 'head',
+            occ: 'Business',
+            party: parties[1]._id,
+          },
+          {
+            sl: '203',
+            name: 'Jasleen Kaur Gill',
+            voterId: 'TN/01/001/1010',
+            guardian: 'Gurpreet Singh Gill',
+            gender: 'female',
+            age: 46,
+            rel: 'spouse',
+            occ: 'Lecturer',
+            party: parties[1]._id,
+          },
+          {
+            sl: '204',
+            name: 'Simran Gill',
+            voterId: 'TN/01/001/1011',
+            guardian: 'Gurpreet Singh Gill',
+            gender: 'female',
+            age: 22,
+            rel: 'daughter',
+            occ: 'Medical Intern',
+            party: null,
+          },
+        ],
+      },
+      {
+        head: 'Joseph Fernandez',
+        label: 'Grace Villa',
+        house: '14-C',
+        street: 'Church Road',
+        locality: 'Civil Lines',
+        phone: '9845012399',
+        status: 'complete',
+        religion: 'Christian',
+        boothNo: 'Booth 02',
+        members: [
+          {
+            sl: '205',
+            name: 'Joseph Fernandez',
+            voterId: 'TN/01/001/1012',
+            guardian: 'Francis Fernandez',
+            gender: 'male',
+            age: 42,
+            rel: 'head',
+            occ: 'Architect',
+            party: parties[0]._id,
+          },
+          {
+            sl: '206',
+            name: 'Mary Fernandez',
+            voterId: 'TN/01/001/1013',
+            guardian: 'Joseph Fernandez',
+            gender: 'female',
+            age: 38,
+            rel: 'spouse',
+            occ: 'Teacher',
+            party: parties[3]._id,
+          },
         ],
       },
     ];
@@ -190,9 +365,16 @@ const seedData = async () => {
         memberCode: `MEM-W01-${Date.now().toString().slice(-4)}-${i}${idx + 1}`,
         familyId: family._id,
         wardId: ward1._id,
+        boothNo: famData.boothNo || 'Booth 01',
+        serialNo: m.sl,
         fullName: m.name,
+        voterId: m.voterId,
+        fatherOrHusbandName: m.guardian,
+        doorNo: famData.house,
         gender: m.gender,
         age: m.age,
+        religion: famData.religion,
+        politicalParty: m.party,
         relationship: m.rel,
         mobilePhone: m.rel === 'head' ? famData.phone : '',
         occupation: m.occ,
@@ -225,9 +407,16 @@ const seedData = async () => {
         memberCode: `MEM-W02-${Date.now().toString().slice(-4)}-01`,
         familyId: fam2._id,
         wardId: ward2._id,
+        boothNo: 'Booth 01',
+        serialNo: '101',
         fullName: 'Suresh Chandra Roy',
+        voterId: 'TN/02/001/2001',
+        fatherOrHusbandName: 'Bimal Chandra Roy',
+        doorNo: '5',
         gender: 'male',
         age: 52,
+        religion: 'Hindu',
+        politicalParty: parties[1]._id,
         relationship: 'head',
         mobilePhone: '9811122233',
         occupation: 'Civil Contractor',
@@ -239,9 +428,16 @@ const seedData = async () => {
         memberCode: `MEM-W02-${Date.now().toString().slice(-4)}-02`,
         familyId: fam2._id,
         wardId: ward2._id,
+        boothNo: 'Booth 01',
+        serialNo: '102',
         fullName: 'Mousumi Roy',
+        voterId: 'TN/02/001/2002',
+        fatherOrHusbandName: 'Suresh Chandra Roy',
+        doorNo: '5',
         gender: 'female',
         age: 47,
+        religion: 'Hindu',
+        politicalParty: parties[1]._id,
         relationship: 'spouse',
         occupation: 'Teacher',
         status: 'complete',
@@ -252,9 +448,16 @@ const seedData = async () => {
         memberCode: `MEM-W02-${Date.now().toString().slice(-4)}-03`,
         familyId: fam2._id,
         wardId: ward2._id,
+        boothNo: 'Booth 01',
+        serialNo: '103',
         fullName: 'Debanjan Roy',
+        voterId: 'TN/02/001/2003',
+        fatherOrHusbandName: 'Suresh Chandra Roy',
+        doorNo: '5',
         gender: 'male',
         age: 23,
+        religion: 'Hindu',
+        politicalParty: parties[0]._id,
         relationship: 'son',
         occupation: 'Data Analyst',
         status: 'complete',
@@ -270,11 +473,11 @@ const seedData = async () => {
       action: 'SYSTEM_INIT',
       entityType: 'System',
       entityId: '0',
-      details: { message: 'Administrative seed database initialized' },
+      details: { message: 'Database initialized with political parties and voter rolls' },
       ipAddress: '127.0.0.1',
     });
 
-    console.log('[Seed] Database successfully seeded with test administrative data!');
+    console.log('[Seed] Database successfully seeded with test political parties and voter records!');
     process.exit(0);
   } catch (error) {
     console.error('[Seed Error]:', error);

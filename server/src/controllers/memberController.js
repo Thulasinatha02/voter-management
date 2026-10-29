@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const { z } = require('zod');
 const Member = require('../models/Member');
 const Family = require('../models/Family');
@@ -7,10 +8,17 @@ const { logAudit } = require('../services/auditService');
 const memberCreateSchema = z.object({
   familyId: z.string().min(1, 'Family reference is required'),
   wardId: z.string().min(1, 'Ward reference is required'),
+  boothNo: z.string().optional().default(''),
+  serialNo: z.string().optional().default(''),
+  voterId: z.string().optional().default(''),
+  fatherOrHusbandName: z.string().optional().default(''),
+  doorNo: z.string().optional().default(''),
   fullName: z.string().min(1, 'Full name is required').trim(),
   gender: z.enum(['male', 'female', 'other', 'unspecified']).optional().default('unspecified'),
   age: z.coerce.number().min(0).max(130).optional(),
   dateOfBirth: z.string().optional().nullable(),
+  religion: z.string().optional().default('Unspecified'),
+  politicalParty: z.string().optional().nullable(),
   relationship: z.string().default('head'),
   mobilePhone: z.string().optional().default(''),
   email: z.string().email().optional().or(z.literal('')),
@@ -31,6 +39,9 @@ const getMembers = async (req, res, next) => {
       relationship,
       status,
       voterEligible,
+      religion,
+      politicalParty,
+      boothNo,
       page = 1,
       limit = 10,
       isArchived = 'false',
@@ -52,12 +63,25 @@ const getMembers = async (req, res, next) => {
     if (gender) query.gender = gender;
     if (relationship) query.relationship = relationship;
     if (status) query.status = status;
+    if (religion) query.religion = religion;
+    if (boothNo) query.boothNo = { $regex: boothNo, $options: 'i' };
+    if (politicalParty) {
+      if (politicalParty === 'none') {
+        query.politicalParty = null;
+      } else {
+        query.politicalParty = politicalParty;
+      }
+    }
     if (voterEligible !== undefined) query.isVoterEligible = voterEligible === 'true';
 
     if (search) {
       query.$or = [
         { fullName: { $regex: search, $options: 'i' } },
         { memberCode: { $regex: search, $options: 'i' } },
+        { voterId: { $regex: search, $options: 'i' } },
+        { serialNo: { $regex: search, $options: 'i' } },
+        { boothNo: { $regex: search, $options: 'i' } },
+        { fatherOrHusbandName: { $regex: search, $options: 'i' } },
         { mobilePhone: { $regex: search, $options: 'i' } },
       ];
     }
@@ -67,6 +91,7 @@ const getMembers = async (req, res, next) => {
     const members = await Member.find(query)
       .populate('wardId', 'wardCode wardName locality')
       .populate('familyId', 'familyCode houseNo street locality headOfFamilyName')
+      .populate('politicalParty', 'partyCode partyName')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(Number(limit));
@@ -89,7 +114,8 @@ const getMemberById = async (req, res, next) => {
   try {
     const member = await Member.findById(req.params.id)
       .populate('wardId', 'wardCode wardName locality')
-      .populate('familyId', 'familyCode houseNo street locality headOfFamilyName');
+      .populate('familyId', 'familyCode houseNo street locality headOfFamilyName')
+      .populate('politicalParty', 'partyCode partyName');
 
     if (!member) {
       return res.status(404).json({ success: false, message: 'Member not found' });
@@ -110,7 +136,27 @@ const createMember = async (req, res, next) => {
       return res.status(400).json({ success: false, errors: parsed.error.issues });
     }
 
-    const { familyId, wardId, fullName, gender, age, dateOfBirth, relationship, mobilePhone, email, occupation, education, status } = parsed.data;
+    const {
+      familyId,
+      wardId,
+      boothNo,
+      serialNo,
+      voterId,
+      fatherOrHusbandName,
+      doorNo,
+      fullName,
+      gender,
+      age,
+      dateOfBirth,
+      religion,
+      politicalParty,
+      relationship,
+      mobilePhone,
+      email,
+      occupation,
+      education,
+      status,
+    } = parsed.data;
 
     const family = await Family.findById(familyId);
     if (!family) {
@@ -129,10 +175,17 @@ const createMember = async (req, res, next) => {
       memberCode,
       familyId,
       wardId,
+      boothNo: boothNo ? boothNo.trim() : '',
+      serialNo: serialNo ? serialNo.trim() : '',
+      voterId: voterId ? voterId.toUpperCase() : '',
+      fatherOrHusbandName: fatherOrHusbandName || '',
+      doorNo: doorNo || family.houseNo,
       fullName,
       gender,
       age,
       dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,
+      religion: religion || 'Unspecified',
+      politicalParty: politicalParty && mongoose.Types.ObjectId.isValid(politicalParty) ? politicalParty : null,
       relationship,
       mobilePhone,
       email,
@@ -174,11 +227,19 @@ const updateMember = async (req, res, next) => {
     if (updateData.age !== undefined) {
       updateData.isVoterEligible = Number(updateData.age) >= 18;
     }
+    if (updateData.voterId) {
+      updateData.voterId = updateData.voterId.toUpperCase();
+    }
+    if (updateData.politicalParty === '' || updateData.politicalParty === 'none') {
+      updateData.politicalParty = null;
+    }
 
     const updated = await Member.findByIdAndUpdate(req.params.id, updateData, {
       new: true,
       runValidators: true,
-    }).populate('wardId', 'wardCode wardName');
+    })
+      .populate('wardId', 'wardCode wardName')
+      .populate('politicalParty', 'partyCode partyName');
 
     await logAudit({
       req,
