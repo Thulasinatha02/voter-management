@@ -6,10 +6,17 @@ const Ward = require('../models/Ward');
 const { logAudit } = require('../services/auditService');
 
 const memberSubSchema = z.object({
+  boothNo: z.string().optional().default(''),
+  serialNo: z.string().optional().default(''),
   fullName: z.string().min(1, 'Full name is required').trim(),
+  voterId: z.string().optional().default(''),
+  fatherOrHusbandName: z.string().optional().default(''),
+  doorNo: z.string().optional().default(''),
   gender: z.enum(['male', 'female', 'other', 'unspecified']).optional().default('unspecified'),
   age: z.coerce.number().min(0).max(130).optional(),
   dateOfBirth: z.string().optional().nullable(),
+  religion: z.string().optional().default('Unspecified'),
+  politicalParty: z.string().optional().nullable(),
   relationship: z.string().default('head'),
   mobilePhone: z.string().optional().default(''),
   occupation: z.string().optional().default(''),
@@ -118,7 +125,9 @@ const getFamilyById = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Family not found' });
     }
 
-    const members = await Member.find({ familyId: family._id, isArchived: false }).sort({ createdAt: 1 });
+    const members = await Member.find({ familyId: family._id, isArchived: false })
+      .populate('politicalParty', 'partyCode partyName')
+      .sort({ createdAt: 1 });
 
     res.json({
       success: true,
@@ -188,10 +197,17 @@ const createFamily = async (req, res, next) => {
         memberCode: `MEM-${ward.wardCode}-${Date.now().toString().slice(-4)}-${idx + 1}`,
         familyId: family._id,
         wardId: family.wardId,
+        boothNo: m.boothNo ? m.boothNo.trim() : '',
+        serialNo: m.serialNo ? m.serialNo.trim() : '',
         fullName: m.fullName,
+        voterId: m.voterId ? m.voterId.toUpperCase() : '',
+        fatherOrHusbandName: m.fatherOrHusbandName || '',
+        doorNo: m.doorNo || houseNo,
         gender: m.gender,
         age: m.age,
         dateOfBirth: m.dateOfBirth ? new Date(m.dateOfBirth) : undefined,
+        religion: m.religion || 'Unspecified',
+        politicalParty: m.politicalParty && mongoose.Types.ObjectId.isValid(m.politicalParty) ? m.politicalParty : null,
         relationship: m.relationship || (idx === 0 ? 'head' : 'other'),
         mobilePhone: m.mobilePhone || contactPhone,
         occupation: m.occupation,

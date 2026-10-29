@@ -100,20 +100,27 @@ const exportWardCsv = async (req, res, next) => {
 
     const members = await Member.find({ wardId: id, isArchived: false })
       .populate('familyId', 'familyCode houseNo street locality contactPhone')
-      .sort({ memberCode: 1 });
+      .populate('politicalParty', 'partyCode partyName')
+      .sort({ boothNo: 1, serialNo: 1, memberCode: 1 });
 
-    let csvContent = 'Member Code,Full Name,Gender,Age,Relationship,Family Code,House No,Locality,Contact Phone,Voter Eligible,Status\n';
+    let csvContent = 'Booth No,Booth Serial No,Voter ID,Full Name,Father/Husband Name,Gender,Age,Religion,Political Party,Door No,Relationship,Family Code,Locality,Contact Phone,Voter Eligible,Status\n';
 
     members.forEach((m) => {
       const fam = m.familyId || {};
+      const party = m.politicalParty ? `${m.politicalParty.partyCode} - ${m.politicalParty.partyName}` : 'Independent / None';
       const row = [
-        `"${m.memberCode || ''}"`,
+        `"${m.boothNo || ''}"`,
+        `"${m.serialNo || ''}"`,
+        `"${m.voterId || ''}"`,
         `"${(m.fullName || '').replace(/"/g, '""')}"`,
+        `"${(m.fatherOrHusbandName || '').replace(/"/g, '""')}"`,
         `"${m.gender || ''}"`,
         m.age ?? '',
+        `"${m.religion || 'Unspecified'}"`,
+        `"${party.replace(/"/g, '""')}"`,
+        `"${(m.doorNo || fam.houseNo || '').replace(/"/g, '""')}"`,
         `"${m.relationship || ''}"`,
         `"${fam.familyCode || ''}"`,
-        `"${(fam.houseNo || '').replace(/"/g, '""')}"`,
         `"${(fam.locality || '').replace(/"/g, '""')}"`,
         `"${m.mobilePhone || fam.contactPhone || ''}"`,
         m.isVoterEligible ? 'Yes' : 'No',

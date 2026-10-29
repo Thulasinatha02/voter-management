@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -8,12 +8,25 @@ import {
   AlertCircle,
   Save,
   Users,
-  ShieldCheck,
   Building,
+  Flag,
+  UserCheck,
+  Check,
 } from 'lucide-react';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import ThemeButton from '../components/common/ThemeButton';
+
+const religionsList = [
+  'Hindu',
+  'Muslim',
+  'Christian',
+  'Sikh',
+  'Buddhist',
+  'Jain',
+  'Other',
+  'Unspecified',
+];
 
 const FamilyForm = () => {
   const { selectedWard, wards } = useAuth();
@@ -31,16 +44,28 @@ const FamilyForm = () => {
   const [status, setStatus] = useState('complete');
   const [notes, setNotes] = useState('');
 
+  // Default household affiliation shortcuts
+  const [defaultBooth, setDefaultBooth] = useState('Booth 01');
+  const [defaultReligion, setDefaultReligion] = useState('Hindu');
+  const [defaultParty, setDefaultParty] = useState('');
+  const [parties, setParties] = useState([]);
+
   // Dynamic Members list
   const [members, setMembers] = useState([
     {
+      boothNo: 'Booth 01',
+      serialNo: '',
       fullName: '',
+      voterId: '',
+      fatherOrHusbandName: '',
+      doorNo: '',
       gender: 'male',
       age: '',
+      religion: 'Hindu',
+      politicalParty: '',
       relationship: 'head',
       mobilePhone: '',
       occupation: '',
-      education: '',
       status: 'complete',
     },
   ]);
@@ -48,6 +73,20 @@ const FamilyForm = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+
+  useEffect(() => {
+    const fetchParties = async () => {
+      try {
+        const res = await api.get('/parties');
+        if (res.data.success) {
+          setParties(res.data.data);
+        }
+      } catch (err) {
+        console.error('Failed to load political parties:', err);
+      }
+    };
+    fetchParties();
+  }, []);
 
   const handleHeadNameChange = (val) => {
     setHeadOfFamilyName(val);
@@ -58,17 +97,45 @@ const FamilyForm = () => {
     }
   };
 
+  const handleHouseNoChange = (val) => {
+    setHouseNo(val);
+    setMembers((prev) =>
+      prev.map((m, idx) => ({
+        ...m,
+        doorNo: m.doorNo ? m.doorNo : val,
+      }))
+    );
+  };
+
+  const applyDefaultsToAllMembers = () => {
+    setMembers((prev) =>
+      prev.map((m) => ({
+        ...m,
+        boothNo: defaultBooth || m.boothNo,
+        doorNo: houseNo || m.doorNo,
+        religion: defaultReligion || m.religion,
+        politicalParty: defaultParty !== undefined ? defaultParty : m.politicalParty,
+      }))
+    );
+  };
+
   const addMemberRow = () => {
     setMembers([
       ...members,
       {
+        boothNo: defaultBooth || (members[0]?.boothNo || 'Booth 01'),
+        serialNo: '',
         fullName: '',
+        voterId: '',
+        fatherOrHusbandName: headOfFamilyName || '',
+        doorNo: houseNo || '',
         gender: 'unspecified',
         age: '',
+        religion: defaultReligion || 'Hindu',
+        politicalParty: defaultParty || '',
         relationship: 'spouse',
-        mobilePhone: '',
+        mobilePhone: contactPhone || '',
         occupation: '',
-        education: '',
         status: 'complete',
       },
     ]);
@@ -126,9 +193,21 @@ const FamilyForm = () => {
         contactPhone,
         status,
         notes,
-        members: members.map((m) => ({
-          ...m,
+        members: members.map((m, idx) => ({
+          boothNo: m.boothNo || defaultBooth || 'Booth 01',
+          serialNo: m.serialNo || '',
+          fullName: m.fullName,
+          voterId: m.voterId ? m.voterId.toUpperCase() : '',
+          fatherOrHusbandName: m.fatherOrHusbandName || '',
+          doorNo: m.doorNo || houseNo,
+          gender: m.gender,
           age: m.age ? Number(m.age) : undefined,
+          religion: m.religion || 'Unspecified',
+          politicalParty: m.politicalParty ? m.politicalParty : null,
+          relationship: m.relationship || (idx === 0 ? 'head' : 'other'),
+          mobilePhone: m.mobilePhone || contactPhone,
+          occupation: m.occupation,
+          status: m.status || 'complete',
         })),
       };
 
@@ -140,13 +219,17 @@ const FamilyForm = () => {
         }, 1200);
       }
     } catch (err) {
-      setError(err.response?.data?.message || err.response?.data?.errors?.[0]?.message || 'Registration failed.');
+      setError(
+        err.response?.data?.message ||
+          err.response?.data?.errors?.[0]?.message ||
+          'Registration failed.'
+      );
       setLoading(false);
     }
   };
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
+    <div className="space-y-6 max-w-6xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -159,36 +242,38 @@ const FamilyForm = () => {
           <div>
             <h1 className="text-2xl font-bold text-slate-900">Family Registration Form</h1>
             <p className="text-xs text-slate-500">
-              Register household unit and immediate family members with atomic validation
+              Register household unit with complete voter roll attributes and affiliations
             </p>
           </div>
         </div>
       </div>
 
       {error && (
-        <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
+        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
           <AlertCircle className="w-4 h-4 shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
       {successMsg && (
-        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2 font-semibold">
+        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2 font-semibold">
           <CheckCircle className="w-4 h-4 shrink-0 text-emerald-600" />
           <span>{successMsg}</span>
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Section A: Household Address */}
-        <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4 relative overflow-hidden">
+        {/* Section A: Household Address & Defaults */}
+        <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-5 relative overflow-hidden">
           <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-400 to-green-500" />
 
-          <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
-            <Building className="w-4 h-4 text-emerald-600" />
-            <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wide">
-              Section A — Ward & Household Address
-            </h2>
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div className="flex items-center gap-2">
+              <Building className="w-4 h-4 text-emerald-600" />
+              <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wide">
+                Section A — Ward & Household Address
+              </h2>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-xs">
@@ -198,7 +283,7 @@ const FamilyForm = () => {
                 required
                 value={wardId}
                 onChange={(e) => setWardId(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 font-semibold focus:outline-hidden focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 font-semibold focus:outline-hidden focus:border-emerald-500"
               >
                 {wards.map((w) => (
                   <option key={w._id} value={w._id}>
@@ -216,7 +301,7 @@ const FamilyForm = () => {
                 value={headOfFamilyName}
                 onChange={(e) => handleHeadNameChange(e.target.value)}
                 placeholder="Full Name of Primary Contact"
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:bg-white font-medium"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:border-emerald-500 focus:bg-white font-medium"
               />
             </div>
 
@@ -227,19 +312,19 @@ const FamilyForm = () => {
                 value={familyLabel}
                 onChange={(e) => setFamilyLabel(e.target.value)}
                 placeholder="e.g. Verma Residence"
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:bg-white"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:border-emerald-500 focus:bg-white"
               />
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">House / Flat No. *</label>
+              <label className="block font-semibold text-slate-700 mb-1">House / Door No. *</label>
               <input
                 type="text"
                 required
                 value={houseNo}
-                onChange={(e) => setHouseNo(e.target.value)}
+                onChange={(e) => handleHouseNoChange(e.target.value)}
                 placeholder="e.g. 12-A / Plot 44"
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:bg-white font-medium"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:border-emerald-500 focus:bg-white font-semibold text-emerald-900"
               />
             </div>
 
@@ -250,7 +335,7 @@ const FamilyForm = () => {
                 value={street}
                 onChange={(e) => setStreet(e.target.value)}
                 placeholder="e.g. Civil Lines Road"
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:bg-white"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:border-emerald-500 focus:bg-white"
               />
             </div>
 
@@ -261,7 +346,7 @@ const FamilyForm = () => {
                 value={locality}
                 onChange={(e) => setLocality(e.target.value)}
                 placeholder="e.g. Civil Lines"
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:bg-white font-medium"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:border-emerald-500 focus:bg-white font-medium"
               />
             </div>
 
@@ -272,7 +357,7 @@ const FamilyForm = () => {
                 value={landmark}
                 onChange={(e) => setLandmark(e.target.value)}
                 placeholder="Near Water Tank"
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:bg-white"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:border-emerald-500 focus:bg-white"
               />
             </div>
 
@@ -283,7 +368,7 @@ const FamilyForm = () => {
                 value={contactPhone}
                 onChange={(e) => setContactPhone(e.target.value)}
                 placeholder="10-digit mobile"
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:bg-white font-medium"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:border-emerald-500 focus:bg-white font-medium"
               />
             </div>
 
@@ -292,16 +377,82 @@ const FamilyForm = () => {
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 font-semibold text-emerald-800"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:border-emerald-500 font-semibold text-emerald-800"
               >
                 <option value="complete">Complete & Verified</option>
                 <option value="incomplete">Incomplete (Follow-up needed)</option>
               </select>
             </div>
           </div>
+
+          {/* Household Demographic Defaults Helper Box */}
+          <div className="mt-4 p-4 rounded-2xl bg-gradient-to-r from-emerald-50/80 to-teal-50/60 border border-emerald-200/80 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                <Flag className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="font-bold text-slate-900 text-xs">Household Demographics Fast-Fill</span>
+                <p className="text-[11px] text-slate-500">
+                  Select family booth, religion & party affiliation to apply to all members with one click
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3 text-xs">
+              <div>
+                <input
+                  type="text"
+                  value={defaultBooth}
+                  onChange={(e) => setDefaultBooth(e.target.value)}
+                  placeholder="Default Booth"
+                  title="Default Booth No (e.g. Booth 01)"
+                  className="px-3 py-1.5 bg-white border border-emerald-200 rounded-xl font-semibold text-slate-800 focus:outline-hidden focus:border-emerald-500 w-28 text-center"
+                />
+              </div>
+
+              <div>
+                <select
+                  value={defaultReligion}
+                  onChange={(e) => setDefaultReligion(e.target.value)}
+                  className="px-3 py-1.5 bg-white border border-emerald-200 rounded-xl font-medium text-slate-700 focus:outline-hidden focus:border-emerald-500"
+                >
+                  {religionsList.map((r) => (
+                    <option key={r} value={r}>
+                      {r}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <select
+                  value={defaultParty}
+                  onChange={(e) => setDefaultParty(e.target.value)}
+                  className="px-3 py-1.5 bg-white border border-emerald-200 rounded-xl font-medium text-slate-700 focus:outline-hidden focus:border-emerald-500"
+                >
+                  <option value="">None / Independent</option>
+                  {parties.map((p) => (
+                    <option key={p._id} value={p._id}>
+                      {p.partyCode} — {p.partyName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <button
+                type="button"
+                onClick={applyDefaultsToAllMembers}
+                className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-xs transition-colors flex items-center gap-1.5"
+              >
+                <Check className="w-3.5 h-3.5" />
+                <span>Apply to All Members</span>
+              </button>
+            </div>
+          </div>
         </div>
 
-        {/* Section B: Dynamic Family Members Table */}
+        {/* Section B: Dynamic Family Members Cards */}
         <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4 relative overflow-hidden">
           <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-400 to-green-500" />
 
@@ -324,116 +475,218 @@ const FamilyForm = () => {
             </ThemeButton>
           </div>
 
-          <div className="space-y-3">
-            {members.map((member, idx) => (
-              <div
-                key={idx}
-                className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200/70 grid grid-cols-1 sm:grid-cols-12 gap-3 items-center text-xs hover:border-emerald-200 transition-colors"
-              >
-                <div className="sm:col-span-1 flex items-center gap-1 font-extrabold text-slate-400">
-                  #{idx + 1}
-                </div>
+          <div className="space-y-4">
+            {members.map((member, idx) => {
+              const isEligible = member.age ? Number(member.age) >= 18 : false;
 
-                <div className="sm:col-span-3">
-                  <label className="block text-[10px] uppercase font-bold text-slate-400 mb-0.5">
-                    Full Name *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={member.fullName}
-                    onChange={(e) => updateMemberField(idx, 'fullName', e.target.value)}
-                    placeholder="Member Name"
-                    className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg focus:outline-hidden focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 font-semibold"
-                  />
-                </div>
+              return (
+                <div
+                  key={idx}
+                  className="p-5 rounded-2xl bg-slate-50/80 border border-slate-200/80 space-y-3 text-xs hover:border-emerald-300 transition-all shadow-xs"
+                >
+                  {/* Card Header */}
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-200/60">
+                    <div className="flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-800 font-extrabold flex items-center justify-center text-xs">
+                        #{idx + 1}
+                      </span>
+                      <span className="font-bold text-slate-800">
+                        {member.fullName || `Member #${idx + 1}`}
+                      </span>
+                      {member.relationship === 'head' && (
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                          Head of Family
+                        </span>
+                      )}
+                      {member.age && (
+                        <span
+                          className={`px-2 py-0.5 rounded-md text-[10px] font-semibold ${
+                            isEligible
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              : 'bg-slate-200/60 text-slate-500'
+                          }`}
+                        >
+                          {isEligible ? 'Voter (18+)' : 'Minor (<18)'}
+                        </span>
+                      )}
+                    </div>
 
-                <div className="sm:col-span-2">
-                  <label className="block text-[10px] uppercase font-bold text-slate-400 mb-0.5">
-                    Gender
-                  </label>
-                  <select
-                    value={member.gender}
-                    onChange={(e) => updateMemberField(idx, 'gender', e.target.value)}
-                    className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg focus:outline-hidden focus:border-emerald-500"
-                  >
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                    <option value="other">Other</option>
-                    <option value="unspecified">Unspecified</option>
-                  </select>
-                </div>
+                    <button
+                      type="button"
+                      onClick={() => removeMemberRow(idx)}
+                      title="Remove member"
+                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
 
-                <div className="sm:col-span-1">
-                  <label className="block text-[10px] uppercase font-bold text-slate-400 mb-0.5">
-                    Age
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="125"
-                    value={member.age}
-                    onChange={(e) => updateMemberField(idx, 'age', e.target.value)}
-                    placeholder="Age"
-                    className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg focus:outline-hidden focus:border-emerald-500 text-center font-bold"
-                  />
-                </div>
+                  {/* Tier 1: Voter Identity & Address */}
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
+                    <div className="sm:col-span-2">
+                      <label className="block text-[10px] uppercase font-bold text-slate-500 mb-0.5">
+                        Booth No
+                      </label>
+                      <input
+                        type="text"
+                        value={member.boothNo || ''}
+                        onChange={(e) => updateMemberField(idx, 'boothNo', e.target.value)}
+                        placeholder="e.g. Booth 01"
+                        className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg focus:outline-hidden focus:border-emerald-500 font-medium text-center"
+                      />
+                    </div>
 
-                <div className="sm:col-span-2">
-                  <label className="block text-[10px] uppercase font-bold text-slate-400 mb-0.5">
-                    Relationship
-                  </label>
-                  <select
-                    value={member.relationship}
-                    onChange={(e) => updateMemberField(idx, 'relationship', e.target.value)}
-                    className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg focus:outline-hidden focus:border-emerald-500 font-medium"
-                  >
-                    <option value="head">Head of Family</option>
-                    <option value="spouse">Spouse</option>
-                    <option value="son">Son</option>
-                    <option value="daughter">Daughter</option>
-                    <option value="father">Father</option>
-                    <option value="mother">Mother</option>
-                    <option value="brother">Brother</option>
-                    <option value="sister">Sister</option>
-                    <option value="grandfather">Grandfather</option>
-                    <option value="grandmother">Grandmother</option>
-                    <option value="other">Other</option>
-                  </select>
-                </div>
+                    <div className="sm:col-span-2">
+                      <label className="block text-[10px] uppercase font-bold text-slate-500 mb-0.5">
+                        Booth Serial No
+                      </label>
+                      <input
+                        type="text"
+                        value={member.serialNo || ''}
+                        onChange={(e) => updateMemberField(idx, 'serialNo', e.target.value)}
+                        placeholder="e.g. 104"
+                        className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg focus:outline-hidden focus:border-emerald-500 font-mono font-bold text-center text-emerald-800"
+                      />
+                    </div>
 
-                <div className="sm:col-span-2">
-                  <label className="block text-[10px] uppercase font-bold text-slate-400 mb-0.5">
-                    Occupation
-                  </label>
-                  <input
-                    type="text"
-                    value={member.occupation}
-                    onChange={(e) => updateMemberField(idx, 'occupation', e.target.value)}
-                    placeholder="e.g. Teacher, Engineer"
-                    className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg focus:outline-hidden focus:border-emerald-500 font-medium"
-                  />
-                </div>
+                    <div className="sm:col-span-3">
+                      <label className="block text-[10px] uppercase font-bold text-slate-500 mb-0.5">
+                        Name of Voter *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={member.fullName}
+                        onChange={(e) => updateMemberField(idx, 'fullName', e.target.value)}
+                        placeholder="Full Legal Name"
+                        className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg focus:outline-hidden focus:border-emerald-500 font-semibold"
+                      />
+                    </div>
 
-                <div className="sm:col-span-1 flex justify-center pt-3 sm:pt-0">
-                  <button
-                    type="button"
-                    onClick={() => removeMemberRow(idx)}
-                    title="Remove member"
-                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+                    <div className="sm:col-span-2">
+                      <label className="block text-[10px] uppercase font-bold text-slate-500 mb-0.5">
+                        Voter ID (EPIC)
+                      </label>
+                      <input
+                        type="text"
+                        value={member.voterId}
+                        onChange={(e) => updateMemberField(idx, 'voterId', e.target.value.toUpperCase())}
+                        placeholder="e.g. ABC1234567"
+                        className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg focus:outline-hidden focus:border-emerald-500 font-mono font-bold uppercase"
+                      />
+                    </div>
 
-          <div className="mt-4 p-3.5 bg-gradient-to-r from-emerald-50/60 to-teal-50/40 rounded-2xl border border-emerald-100 text-[11px] text-emerald-800 flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-            <span>
-              <strong>Administrative Policy:</strong> Religion and political-party affiliations are intentionally omitted from registration to uphold privacy standards.
-            </span>
+                    <div className="sm:col-span-3">
+                      <label className="block text-[10px] uppercase font-bold text-slate-500 mb-0.5">
+                        Father / Husband Name
+                      </label>
+                      <input
+                        type="text"
+                        value={member.fatherOrHusbandName}
+                        onChange={(e) => updateMemberField(idx, 'fatherOrHusbandName', e.target.value)}
+                        placeholder="Guardian Name"
+                        className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg focus:outline-hidden focus:border-emerald-500 font-medium"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Tier 2: Door No, Demographics, Affiliation & Contact */}
+                  <div className="grid grid-cols-2 sm:grid-cols-12 gap-3 items-center pt-1">
+                    <div className="sm:col-span-2">
+                      <label className="block text-[10px] uppercase font-bold text-slate-500 mb-0.5">
+                        Door No
+                      </label>
+                      <input
+                        type="text"
+                        value={member.doorNo}
+                        onChange={(e) => updateMemberField(idx, 'doorNo', e.target.value)}
+                        placeholder={houseNo || 'Door #'}
+                        className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg focus:outline-hidden focus:border-emerald-500 font-semibold"
+                      />
+                    </div>
+
+                    <div className="sm:col-span-1">
+                      <label className="block text-[10px] uppercase font-bold text-slate-500 mb-0.5">
+                        Age
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="125"
+                        value={member.age}
+                        onChange={(e) => updateMemberField(idx, 'age', e.target.value)}
+                        placeholder="Age"
+                        className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg focus:outline-hidden focus:border-emerald-500 text-center font-bold"
+                      />
+                    </div>
+
+                    <div className="sm:col-span-2">
+                      <label className="block text-[10px] uppercase font-bold text-slate-500 mb-0.5">
+                        Gender
+                      </label>
+                      <select
+                        value={member.gender}
+                        onChange={(e) => updateMemberField(idx, 'gender', e.target.value)}
+                        className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg focus:outline-hidden focus:border-emerald-500 font-medium"
+                      >
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="other">Other</option>
+                        <option value="unspecified">Unspecified</option>
+                      </select>
+                    </div>
+
+                    <div className="sm:col-span-2">
+                      <label className="block text-[10px] uppercase font-bold text-slate-500 mb-0.5">
+                        Religion
+                      </label>
+                      <select
+                        value={member.religion}
+                        onChange={(e) => updateMemberField(idx, 'religion', e.target.value)}
+                        className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg focus:outline-hidden focus:border-emerald-500 font-medium"
+                      >
+                        {religionsList.map((r) => (
+                          <option key={r} value={r}>
+                            {r}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="sm:col-span-3">
+                      <label className="block text-[10px] uppercase font-bold text-slate-500 mb-0.5">
+                        Political Party
+                      </label>
+                      <select
+                        value={member.politicalParty || ''}
+                        onChange={(e) => updateMemberField(idx, 'politicalParty', e.target.value)}
+                        className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg focus:outline-hidden focus:border-emerald-500 font-semibold text-emerald-900"
+                      >
+                        <option value="">None / Independent</option>
+                        {parties.map((p) => (
+                          <option key={p._id} value={p._id}>
+                            {p.partyCode} — {p.partyName}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="sm:col-span-2">
+                      <label className="block text-[10px] uppercase font-bold text-slate-500 mb-0.5">
+                        Phone No
+                      </label>
+                      <input
+                        type="tel"
+                        value={member.mobilePhone}
+                        onChange={(e) => updateMemberField(idx, 'mobilePhone', e.target.value)}
+                        placeholder="Mobile"
+                        className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg focus:outline-hidden focus:border-emerald-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
 

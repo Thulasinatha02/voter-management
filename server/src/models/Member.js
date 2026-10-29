@@ -22,6 +22,35 @@ const memberSchema = new mongoose.Schema(
       required: [true, 'Ward reference is required'],
       index: true,
     },
+    boothNo: {
+      type: String,
+      trim: true,
+      default: '',
+      index: true,
+    },
+    serialNo: {
+      type: String,
+      trim: true,
+      default: '',
+      index: true,
+    },
+    voterId: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      default: '',
+      index: true,
+    },
+    fatherOrHusbandName: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    doorNo: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     fullName: {
       type: String,
       required: [true, 'Full name is required'],
@@ -40,6 +69,19 @@ const memberSchema = new mongoose.Schema(
       type: Number,
       min: 0,
       max: 130,
+    },
+    religion: {
+      type: String,
+      enum: ['Hindu', 'Muslim', 'Christian', 'Sikh', 'Buddhist', 'Jain', 'Other', 'Unspecified'],
+      default: 'Unspecified',
+      trim: true,
+      index: true,
+    },
+    politicalParty: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Party',
+      default: null,
+      index: true,
     },
     relationship: {
       type: String,
@@ -113,6 +155,9 @@ const memberSchema = new mongoose.Schema(
 );
 
 memberSchema.index({ wardId: 1, familyId: 1, isArchived: 1 });
-memberSchema.index({ fullName: 'text', memberCode: 'text' });
+memberSchema.index({ wardId: 1, boothNo: 1, serialNo: 1 });
+memberSchema.index({ fullName: 'text', memberCode: 'text', voterId: 'text' });
+memberSchema.index({ politicalParty: 1, wardId: 1 });
+memberSchema.index({ religion: 1, wardId: 1 });
 
 module.exports = mongoose.model('Member', memberSchema);

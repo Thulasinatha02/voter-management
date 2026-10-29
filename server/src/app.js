@@ -5,6 +5,7 @@ const morgan = require('morgan');
 
 const authRoutes = require('./routes/authRoutes');
 const wardRoutes = require('./routes/wardRoutes');
+const partyRoutes = require('./routes/partyRoutes');
 const familyRoutes = require('./routes/familyRoutes');
 const memberRoutes = require('./routes/memberRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
@@ -38,6 +39,7 @@ app.get('/api/health', (req, res) => {
 // Mount modular API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/wards', wardRoutes);
+app.use('/api/parties', partyRoutes);
 app.use('/api/families', familyRoutes);
 app.use('/api/members', memberRoutes);
 app.use('/api', dashboardRoutes);
