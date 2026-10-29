@@ -3,30 +3,32 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
   MapPin,
-  Flag,
   Home,
   Users,
   FileBarChart,
   UserCheck,
   ShieldAlert,
   Settings,
+  Flag,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { theme } from '../theme/theme';
+import { useLanguage } from '../context/LanguageContext';
+import LanguageToggle from './common/LanguageToggle';
 
 const Sidebar = ({ isOpen, setIsOpen }) => {
   const { user } = useAuth();
+  const { t } = useLanguage();
 
   const navItems = [
-    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, roles: ['superadmin', 'ward_officer', 'data_operator', 'auditor'] },
-    { name: 'Ward Management', path: '/wards', icon: MapPin, roles: ['superadmin', 'ward_officer', 'auditor'] },
-    { name: 'Political Parties', path: '/parties', icon: Flag, roles: ['superadmin', 'ward_officer', 'data_operator', 'auditor'] },
-    { name: 'Family Management', path: '/families', icon: Home, roles: ['superadmin', 'ward_officer', 'data_operator', 'auditor'] },
-    { name: 'Member Management', path: '/members', icon: Users, roles: ['superadmin', 'ward_officer', 'data_operator', 'auditor'] },
-    { name: 'Ward Reports', path: '/reports', icon: FileBarChart, roles: ['superadmin', 'ward_officer', 'auditor'] },
-    { name: 'User Management', path: '/users', icon: UserCheck, roles: ['superadmin'] },
-    { name: 'Audit Logs', path: '/audit-logs', icon: ShieldAlert, roles: ['superadmin', 'auditor'] },
-    { name: 'Settings', path: '/settings', icon: Settings, roles: ['superadmin', 'ward_officer', 'data_operator', 'auditor'] },
+    { name: t('nav.dashboard'), path: '/dashboard', icon: LayoutDashboard, roles: ['superadmin', 'ward_officer', 'data_operator', 'auditor'] },
+    { name: t('nav.wardManagement'), path: '/wards', icon: MapPin, roles: ['superadmin', 'ward_officer', 'auditor'] },
+    { name: t('nav.familyManagement'), path: '/families', icon: Home, roles: ['superadmin', 'ward_officer', 'data_operator', 'auditor'] },
+    { name: t('nav.memberManagement'), path: '/members', icon: Users, roles: ['superadmin', 'ward_officer', 'data_operator', 'auditor'] },
+    { name: t('nav.partyManagement') || 'Party Management', path: '/parties', icon: Flag, roles: ['superadmin', 'ward_officer', 'data_operator', 'auditor'] },
+    { name: t('nav.wardReports'), path: '/reports', icon: FileBarChart, roles: ['superadmin', 'ward_officer', 'auditor'] },
+    { name: t('nav.userManagement'), path: '/users', icon: UserCheck, roles: ['superadmin'] },
+    { name: t('nav.auditLogs'), path: '/audit-logs', icon: ShieldAlert, roles: ['superadmin', 'auditor'] },
+    { name: t('nav.settings'), path: '/settings', icon: Settings, roles: ['superadmin', 'ward_officer', 'data_operator', 'auditor'] },
   ];
 
   const allowedItems = navItems.filter((item) =>
@@ -45,19 +47,16 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
           W
         </div>
         <div>
-          <h1 className="font-extrabold text-white text-sm tracking-wider">WARD PORTAL</h1>
+          <h1 className="font-extrabold text-white text-sm tracking-wider">{t('common.portalTitle')}</h1>
           <p className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            Registry & Governance
+            {t('common.registrySubtitle')}
           </p>
         </div>
       </div>
 
       {/* Navigation Links */}
       <div className="flex-1 py-5 px-3 space-y-1.5 overflow-y-auto">
-        <div className="px-3 pb-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-          Administrative Menu
-        </div>
         {allowedItems.map((item) => {
           const Icon = item.icon;
           return (
@@ -80,10 +79,16 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
         })}
       </div>
 
-      {/* Role Pill at footer */}
-      <div className="p-4 border-t border-slate-900">
+      {/* Language Switcher in Drawer & User Status */}
+      <div className="p-4 border-t border-slate-900 space-y-3">
+        {/* Mobile Full Toggle */}
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] text-slate-400 font-bold uppercase">Language / மொழி</span>
+          <LanguageToggle compact={false} />
+        </div>
+
         <div className="bg-slate-900/90 rounded-xl p-3 border border-slate-800/80">
-          <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Session Active</div>
+          <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">{t('nav.sessionActive')}</div>
           <div className="text-xs font-bold text-slate-200 mt-0.5 truncate">{user?.fullName || user?.username}</div>
           <div className="inline-block mt-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase bg-gradient-to-r from-emerald-500/20 to-teal-500/20 text-emerald-300 border border-emerald-500/30">
             {user?.role?.replace('_', ' ')}

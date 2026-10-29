@@ -13,6 +13,9 @@ import {
   ChevronRight,
   Archive,
   RotateCcw,
+  Edit2,
+  X,
+  ChevronDown,
 } from 'lucide-react';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -31,6 +34,8 @@ const Families = () => {
   const [status, setStatus] = useState(searchParams.get('status') || '');
   const [page, setPage] = useState(Number(searchParams.get('page')) || 1);
   const [showArchived, setShowArchived] = useState(false);
+  const [isEditFamilyOpen, setIsEditFamilyOpen] = useState(false);
+  const [editingFamily, setEditingFamily] = useState(null);
 
   const fetchFamilies = async () => {
     if (!selectedWard) return;
@@ -61,6 +66,40 @@ const Families = () => {
   useEffect(() => {
     fetchFamilies();
   }, [selectedWard, search, status, page, showArchived]);
+
+  const handleOpenEdit = (fam) => {
+    setEditingFamily({
+      _id: fam._id,
+      familyCode: fam.familyCode,
+      headOfFamilyName: fam.headOfFamilyName || '',
+      familyLabel: fam.familyLabel || '',
+      houseNo: fam.houseNo || '',
+      street: fam.street || '',
+      locality: fam.locality || '',
+      landmark: fam.landmark || '',
+      pincode: fam.pincode || '',
+      contactPhone: fam.contactPhone || '',
+      status: fam.status || 'complete',
+    });
+    setIsEditFamilyOpen(true);
+  };
+
+  const handleUpdateFamily = async (e) => {
+    e.preventDefault();
+    if (!editingFamily.headOfFamilyName.trim() || !editingFamily.houseNo.trim()) {
+      alert('Head of family name and house number are required.');
+      return;
+    }
+
+    try {
+      await api.patch(`/families/${editingFamily._id}`, editingFamily);
+      setIsEditFamilyOpen(false);
+      setEditingFamily(null);
+      await fetchFamilies();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Error updating family');
+    }
+  };
 
   const handleToggleArchive = async (fam) => {
     const action = fam.isArchived ? 'restore' : 'archive';
@@ -212,6 +251,13 @@ const Families = () => {
                     </td>
                     <td className="py-3.5 px-4 text-right">
                       <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => handleOpenEdit(fam)}
+                          className="p-1.5 text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
+                          title="Edit Family"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
                         <Link
                           to={`/families/${fam._id}`}
                           className="p-1.5 text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
@@ -264,6 +310,170 @@ const Families = () => {
           </div>
         )}
       </div>
+
+      {/* EDIT FAMILY MODAL / BOTTOM SHEET */}
+      {isEditFamilyOpen && editingFamily && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/50 backdrop-blur-xs">
+          <div className="bg-white rounded-t-3xl sm:rounded-3xl border border-slate-200 shadow-2xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom sm:slide-in-from-bottom-0">
+            {/* Sheet Handle */}
+            <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-4 sm:hidden" />
+
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div>
+                <h2 className="text-base font-bold text-slate-900">Edit Household & Address</h2>
+                <span className="text-xs font-mono font-bold text-emerald-700">{editingFamily.familyCode}</span>
+              </div>
+              <button
+                onClick={() => {
+                  setIsEditFamilyOpen(false);
+                  setEditingFamily(null);
+                }}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-full hover:bg-slate-100"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateFamily} className="space-y-4 pt-4 text-xs">
+              {/* Row 1: Head of Family & Family Label */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    Head of Family Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editingFamily.headOfFamilyName}
+                    onChange={(e) => setEditingFamily({ ...editingFamily, headOfFamilyName: e.target.value })}
+                    placeholder="e.g. Thulasinatha"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:border-emerald-500 font-medium"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Family / Household Label</label>
+                  <input
+                    type="text"
+                    value={editingFamily.familyLabel}
+                    onChange={(e) => setEditingFamily({ ...editingFamily, familyLabel: e.target.value })}
+                    placeholder="e.g. Thulasinatha Household"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:border-emerald-500 font-medium"
+                  />
+                </div>
+              </div>
+
+              {/* Row 2: House No & Street */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    House No / Door No <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editingFamily.houseNo}
+                    onChange={(e) => setEditingFamily({ ...editingFamily, houseNo: e.target.value })}
+                    placeholder="e.g. 57/1"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:border-emerald-500 font-medium"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Street / Cross</label>
+                  <input
+                    type="text"
+                    value={editingFamily.street}
+                    onChange={(e) => setEditingFamily({ ...editingFamily, street: e.target.value })}
+                    placeholder="e.g. Paramasivapuram"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:border-emerald-500 font-medium"
+                  />
+                </div>
+              </div>
+
+              {/* Row 3: Locality & Landmark */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Locality</label>
+                  <input
+                    type="text"
+                    value={editingFamily.locality}
+                    onChange={(e) => setEditingFamily({ ...editingFamily, locality: e.target.value })}
+                    placeholder="e.g. Mallaikottai"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:border-emerald-500 font-medium"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Landmark</label>
+                  <input
+                    type="text"
+                    value={editingFamily.landmark}
+                    onChange={(e) => setEditingFamily({ ...editingFamily, landmark: e.target.value })}
+                    placeholder="Near temple, school, etc."
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:border-emerald-500 font-medium"
+                  />
+                </div>
+              </div>
+
+              {/* Row 4: Contact Phone, Pincode & Status */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Contact Phone</label>
+                  <input
+                    type="tel"
+                    inputMode="numeric"
+                    value={editingFamily.contactPhone}
+                    onChange={(e) => setEditingFamily({ ...editingFamily, contactPhone: e.target.value })}
+                    placeholder="10-digit mobile"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:border-emerald-500 font-medium"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Pincode</label>
+                  <input
+                    type="text"
+                    value={editingFamily.pincode}
+                    onChange={(e) => setEditingFamily({ ...editingFamily, pincode: e.target.value })}
+                    placeholder="6-digit pincode"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:border-emerald-500 font-medium"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Status</label>
+                  <div className="relative">
+                    <select
+                      value={editingFamily.status}
+                      onChange={(e) => setEditingFamily({ ...editingFamily, status: e.target.value })}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:border-emerald-500 font-medium appearance-none capitalize"
+                    >
+                      <option value="complete">Complete</option>
+                      <option value="incomplete">Incomplete</option>
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-3 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditFamilyOpen(false);
+                    setEditingFamily(null);
+                  }}
+                  className="px-4 py-2.5 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl hover:from-emerald-500 hover:to-teal-500 font-bold shadow-md shadow-emerald-600/30"
+                >
+                  Update Household
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

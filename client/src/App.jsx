@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { LanguageProvider } from './context/LanguageContext';
 import Layout from './layouts/Layout';
 
 import Login from './pages/Login';
@@ -41,51 +42,53 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 
 function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<Login />} />
+    <LanguageProvider>
+      <AuthProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/login" element={<Login />} />
 
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <Layout />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="wards" element={<Wards />} />
-            <Route path="parties" element={<Parties />} />
-            <Route path="families" element={<Families />} />
-            <Route path="families/new" element={<FamilyForm />} />
-            <Route path="families/:id" element={<FamilyDetails />} />
-            <Route path="members" element={<Members />} />
-            <Route path="reports" element={<Reports />} />
             <Route
-              path="users"
+              path="/"
               element={
-                <ProtectedRoute allowedRoles={['superadmin']}>
-                  <UsersPage />
+                <ProtectedRoute>
+                  <Layout />
                 </ProtectedRoute>
               }
-            />
-            <Route
-              path="audit-logs"
-              element={
-                <ProtectedRoute allowedRoles={['superadmin', 'auditor']}>
-                  <AuditLogs />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="settings" element={<SettingsPage />} />
-          </Route>
+            >
+              <Route index element={<Navigate to="/dashboard" replace />} />
+              <Route path="dashboard" element={<Dashboard />} />
+              <Route path="wards" element={<Wards />} />
+              <Route path="families" element={<Families />} />
+              <Route path="families/new" element={<FamilyForm />} />
+              <Route path="families/:id" element={<FamilyDetails />} />
+              <Route path="members" element={<Members />} />
+              <Route path="parties" element={<Parties />} />
+              <Route path="reports" element={<Reports />} />
+              <Route
+                path="users"
+                element={
+                  <ProtectedRoute allowedRoles={['superadmin']}>
+                    <UsersPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="audit-logs"
+                element={
+                  <ProtectedRoute allowedRoles={['superadmin', 'auditor']}>
+                    <AuditLogs />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="settings" element={<SettingsPage />} />
+            </Route>
 
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
+    </LanguageProvider>
   );
 }
 
