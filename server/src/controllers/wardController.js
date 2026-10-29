@@ -2,6 +2,7 @@ const { z } = require('zod');
 const Ward = require('../models/Ward');
 const { logAudit } = require('../services/auditService');
 
+// Removed totalPopulationEstimate from manual input schema
 const wardSchema = z.object({
   wardCode: z.string().min(1, 'Ward code is required').trim(),
   wardName: z.string().min(1, 'Ward name is required').trim(),
@@ -9,15 +10,14 @@ const wardSchema = z.object({
   district: z.string().optional().default(''),
   zone: z.string().optional().default(''),
   isActive: z.boolean().optional().default(true),
-  totalPopulationEstimate: z.number().nonnegative().optional().default(0),
 });
 
-// @desc Get authorized wards
+// @desc Get authorized wards with live auto-calculated population and family counts
 // @route GET /api/wards
 const getWards = async (req, res, next) => {
   try {
     const { search, isArchived = 'false' } = req.query;
-    let query = { isArchived: isArchived === 'true' };
+    let matchQuery = { isArchived: isArchived === 'true' };
 
     // Ward restriction if not superadmin/auditor
     if (
@@ -26,25 +26,86 @@ const getWards = async (req, res, next) => {
       req.user.assignedWards &&
       req.user.assignedWards.length > 0
     ) {
-      query._id = { $in: req.user.assignedWards };
+      matchQuery._id = { $in: req.user.assignedWards };
     }
 
     if (search) {
-      query.$or = [
+      matchQuery.$or = [
         { wardCode: { $regex: search, $options: 'i' } },
         { wardName: { $regex: search, $options: 'i' } },
         { locality: { $regex: search, $options: 'i' } },
       ];
     }
 
-    const wards = await Ward.find(query).sort({ wardCode: 1 });
+    // Dynamic aggregation calculating real registered population and family counts
+    const wards = await Ward.aggregate([
+      { $match: matchQuery },
+      {
+        $lookup: {
+          from: 'members',
+          let: { wardId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$wardId', '$$wardId'] },
+                    { $eq: ['$isArchived', false] },
+                  ],
+                },
+              },
+            },
+            { $count: 'count' },
+          ],
+          as: 'memberStats',
+        },
+      },
+      {
+        $lookup: {
+          from: 'families',
+          let: { wardId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$wardId', '$$wardId'] },
+                    { $eq: ['$isArchived', false] },
+                  ],
+                },
+              },
+            },
+            { $count: 'count' },
+          ],
+          as: 'familyStats',
+        },
+      },
+      {
+        $addFields: {
+          actualPopulation: {
+            $ifNull: [{ $arrayElemAt: ['$memberStats.count', 0] }, 0],
+          },
+          totalFamilies: {
+            $ifNull: [{ $arrayElemAt: ['$familyStats.count', 0] }, 0],
+          },
+        },
+      },
+      {
+        $project: {
+          memberStats: 0,
+          familyStats: 0,
+        },
+      },
+      { $sort: { wardCode: 1 } },
+    ]);
+
     res.json({ success: true, count: wards.length, data: wards });
   } catch (error) {
     next(error);
   }
 };
 
-// @desc Get single ward by id
+// @desc Get single ward by id with live registered population
 // @route GET /api/wards/:id
 const getWardById = async (req, res, next) => {
   try {
@@ -58,7 +119,7 @@ const getWardById = async (req, res, next) => {
   }
 };
 
-// @desc Create new ward
+// @desc Create new ward (clean without manual population estimate)
 // @route POST /api/wards
 const createWard = async (req, res, next) => {
   try {
@@ -102,7 +163,10 @@ const updateWard = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Ward not found' });
     }
 
-    const updated = await Ward.findByIdAndUpdate(req.params.id, req.body, {
+    const updatePayload = { ...req.body };
+    delete updatePayload.totalPopulationEstimate; // Prevent manual population tampering
+
+    const updated = await Ward.findByIdAndUpdate(req.params.id, updatePayload, {
       new: true,
       runValidators: true,
     });
