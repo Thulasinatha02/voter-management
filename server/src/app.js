@@ -2,7 +2,6 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
-const rateLimit = require('express-rate-limit');
 
 const authRoutes = require('./routes/authRoutes');
 const wardRoutes = require('./routes/wardRoutes');
@@ -15,33 +14,6 @@ const app = express();
 
 // Security and utility middlewares
 app.use(helmet());
-
-// Global API Rate Limiter: skip /api/health and allow generous threshold in development
-const globalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: process.env.NODE_ENV === 'production' ? 300 : 2000,
-  skip: (req) => req.path === '/health',
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    success: false,
-    message: 'Too many requests from this IP address. Please try again after 15 minutes.',
-  },
-});
-app.use('/api', globalLimiter);
-
-// Dedicated strict brute-force protection for authentication endpoints
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: process.env.NODE_ENV === 'production' ? 20 : 100,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    success: false,
-    message: 'Too many login attempts. Access temporarily locked for 15 minutes to prevent brute-force attacks.',
-  },
-});
-app.use('/api/auth/login', authLimiter);
 
 // Dynamic CORS configuration supporting local development and production domains
 const allowedOrigins = [
