@@ -196,7 +196,9 @@ const createUser = async (req, res, next) => {
 // @route GET /api/auth/users
 const listUsers = async (req, res, next) => {
   try {
-    const users = await User.find().populate('assignedWards').sort({ createdAt: -1 });
+    const users = await User.find({ isDeleted: { $ne: true } })
+      .populate('assignedWards')
+      .sort({ createdAt: -1 });
     res.json({ success: true, data: users });
   } catch (error) {
     next(error);
@@ -246,7 +248,7 @@ const updateUser = async (req, res, next) => {
   }
 };
 
-// @desc Delete user (Superadmin only)
+// @desc Delete user (Superadmin only - Soft Delete)
 // @route DELETE /api/auth/users/:id
 const deleteUser = async (req, res, next) => {
   try {
@@ -258,31 +260,36 @@ const deleteUser = async (req, res, next) => {
     }
 
     const user = await User.findById(targetUserId);
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
+    if (!user || user.isDeleted) {
+      return res.status(404).json({ success: false, message: 'User not found or already archived' });
     }
 
     // Ensure at least one active superadmin remains
     if (user.role === 'superadmin') {
-      const superadminCount = await User.countDocuments({ role: 'superadmin', isActive: true });
+      const superadminCount = await User.countDocuments({ role: 'superadmin', isActive: true, isDeleted: { $ne: true } });
       if (superadminCount <= 1) {
         return res.status(400).json({ success: false, message: 'Cannot delete the only remaining superadmin.' });
       }
     }
 
-    await User.findByIdAndDelete(targetUserId);
+    // Government-grade soft deletion preserves historical audit logs and foreign keys
+    user.isDeleted = true;
+    user.isActive = false;
+    user.deletedAt = new Date();
+    user.deletedBy = req.user._id;
+    await user.save();
 
     await logAudit({
       req,
-      action: 'DELETE',
+      action: 'ARCHIVE_DELETE',
       entityType: 'User',
       entityId: targetUserId,
-      details: { username: user.username, role: user.role },
+      details: { username: user.username, role: user.role, softDeleted: true },
     });
 
     res.json({
       success: true,
-      message: `User ${user.username} deleted successfully.`,
+      message: `User ${user.username} safely archived and deactivated. Historical audit trails preserved.`,
     });
   } catch (error) {
     next(error);

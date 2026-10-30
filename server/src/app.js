@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const rateLimit = require('express-rate-limit');
 
 const authRoutes = require('./routes/authRoutes');
 const wardRoutes = require('./routes/wardRoutes');
@@ -14,6 +15,32 @@ const app = express();
 
 // Security and utility middlewares
 app.use(helmet());
+
+// Global API Rate Limiter: max 300 requests per 15 minutes per IP
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: 'Too many requests from this IP address. Please try again after 15 minutes.',
+  },
+});
+app.use('/api', globalLimiter);
+
+// Dedicated strict brute-force protection for authentication endpoints: max 10 requests per 15 min
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: 'Too many login attempts. Access temporarily locked for 15 minutes to prevent brute-force attacks.',
+  },
+});
+app.use('/api/auth/login', authLimiter);
 
 // Dynamic CORS configuration supporting local development and production domains
 const allowedOrigins = [
@@ -35,7 +62,10 @@ app.use(
       ) {
         return callback(null, true);
       }
-      return callback(null, true); // Fallback allow in dev
+      if (process.env.NODE_ENV !== 'production') {
+        return callback(null, true);
+      }
+      return callback(new Error('Blocked by Cross-Origin Resource Sharing (CORS) Policy.'));
     },
     credentials: true,
   })
