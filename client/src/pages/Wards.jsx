@@ -203,7 +203,7 @@ const Wards = () => {
                     </div>
 
                     <div className="flex items-center gap-1">
-                      {isSuperadmin && (
+                      {canManageWards && (
                         <button
                           onClick={() => handleOpenEdit(ward)}
                           className="p-2 text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-xl"
