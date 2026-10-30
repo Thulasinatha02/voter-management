@@ -67,4 +67,23 @@ const verifyWardAccess = (req, res, next) => {
   next();
 };
 
-module.exports = { protect, authorize, verifyWardAccess };
+// Check if user has specific module-level permission
+const checkPermission = (permissionName) => {
+  return (req, res, next) => {
+    // Superadmin has universal permission
+    if (req.user?.role === 'superadmin') {
+      return next();
+    }
+
+    if (req.user?.permissions && req.user.permissions[permissionName] === true) {
+      return next();
+    }
+
+    return res.status(403).json({
+      success: false,
+      message: `Access denied: You do not have permission for the '${permissionName}' module.`,
+    });
+  };
+};
+
+module.exports = { protect, authorize, verifyWardAccess, checkPermission };

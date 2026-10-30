@@ -39,6 +39,17 @@ const userSchema = new mongoose.Schema(
         ref: 'Ward',
       },
     ],
+    // Granular Module Permission Flags
+    permissions: {
+      dashboard: { type: Boolean, default: true },
+      familyManagement: { type: Boolean, default: true },
+      memberManagement: { type: Boolean, default: true },
+      wardManagement: { type: Boolean, default: false },
+      partyManagement: { type: Boolean, default: false },
+      wardReports: { type: Boolean, default: false },
+      userManagement: { type: Boolean, default: false },
+      auditLogs: { type: Boolean, default: false },
+    },
     isActive: {
       type: Boolean,
       default: true,

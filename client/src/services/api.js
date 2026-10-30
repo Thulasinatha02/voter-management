@@ -1,10 +1,9 @@
 import axios from 'axios';
 
-const baseURL =
-  import.meta.env.VITE_API_URL ||
-  (import.meta.env.PROD
-    ? 'https://voter-management-wp2d.onrender.com/api'
-    : 'https://voter-management-wp2d.onrender.com/api');
+// Dynamic API Base URL:
+// In local development (npm run dev): uses '/api' via Vite proxy to localhost:5000
+// In production builds (npm run build): uses Render cloud URL from .env.production
+const baseURL = import.meta.env.VITE_API_URL || '/api';
 
 const api = axios.create({
   baseURL,

@@ -20,20 +20,29 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
   const { t } = useLanguage();
 
   const navItems = [
-    { name: t('nav.dashboard'), path: '/dashboard', icon: LayoutDashboard, roles: ['superadmin', 'ward_officer', 'data_operator', 'auditor'] },
-    { name: t('nav.wardManagement'), path: '/wards', icon: MapPin, roles: ['superadmin', 'ward_officer', 'auditor'] },
-    { name: t('nav.familyManagement'), path: '/families', icon: Home, roles: ['superadmin', 'ward_officer', 'data_operator', 'auditor'] },
-    { name: t('nav.memberManagement'), path: '/members', icon: Users, roles: ['superadmin', 'ward_officer', 'data_operator', 'auditor'] },
-    { name: t('nav.partyManagement') || 'Party Management', path: '/parties', icon: Flag, roles: ['superadmin', 'ward_officer', 'data_operator', 'auditor'] },
-    { name: t('nav.wardReports'), path: '/reports', icon: FileBarChart, roles: ['superadmin', 'ward_officer', 'auditor'] },
-    { name: t('nav.userManagement'), path: '/users', icon: UserCheck, roles: ['superadmin'] },
-    { name: t('nav.auditLogs'), path: '/audit-logs', icon: ShieldAlert, roles: ['superadmin', 'auditor'] },
-    { name: t('nav.settings'), path: '/settings', icon: Settings, roles: ['superadmin', 'ward_officer', 'data_operator', 'auditor'] },
+    { name: t('nav.dashboard'), path: '/dashboard', icon: LayoutDashboard, permission: 'dashboard', roles: ['superadmin', 'ward_officer', 'data_operator', 'auditor'] },
+    { name: t('nav.wardManagement'), path: '/wards', icon: MapPin, permission: 'wardManagement', roles: ['superadmin', 'ward_officer', 'auditor'] },
+    { name: t('nav.familyManagement'), path: '/families', icon: Home, permission: 'familyManagement', roles: ['superadmin', 'ward_officer', 'data_operator', 'auditor'] },
+    { name: t('nav.memberManagement'), path: '/members', icon: Users, permission: 'memberManagement', roles: ['superadmin', 'ward_officer', 'data_operator', 'auditor'] },
+    { name: t('nav.partyManagement') || 'Party Management', path: '/parties', icon: Flag, permission: 'partyManagement', roles: ['superadmin', 'ward_officer', 'data_operator', 'auditor'] },
+    { name: t('nav.wardReports'), path: '/reports', icon: FileBarChart, permission: 'wardReports', roles: ['superadmin', 'ward_officer', 'auditor'] },
+    { name: t('nav.userManagement'), path: '/users', icon: UserCheck, permission: 'userManagement', roles: ['superadmin'] },
+    { name: t('nav.auditLogs'), path: '/audit-logs', icon: ShieldAlert, permission: 'auditLogs', roles: ['superadmin', 'auditor'] },
+    { name: t('nav.settings'), path: '/settings', icon: Settings, permission: null, roles: ['superadmin', 'ward_officer', 'data_operator', 'auditor'] },
   ];
 
-  const allowedItems = navItems.filter((item) =>
-    item.roles.includes(user?.role || 'data_operator')
-  );
+  const allowedItems = navItems.filter((item) => {
+    // Superadmin has access to everything
+    if (user?.role === 'superadmin') return true;
+
+    // If item requires a specific permission and user has a permissions object, check it
+    if (item.permission && user?.permissions) {
+      return Boolean(user.permissions[item.permission]);
+    }
+
+    // Fallback to role-based check
+    return item.roles.includes(user?.role || 'data_operator');
+  });
 
   return (
     <aside
