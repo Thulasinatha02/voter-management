@@ -33,6 +33,7 @@ const Members = () => {
   const [search, setSearch] = useState('');
   const [boothNo, setBoothNo] = useState('');
   const [gender, setGender] = useState('');
+  const [residenceStatus, setResidenceStatus] = useState('');
   const [voterEligible, setVoterEligible] = useState('');
   const [religion, setReligion] = useState('');
   const [politicalParty, setPoliticalParty] = useState('');
@@ -62,6 +63,7 @@ const Members = () => {
           search,
           boothNo: boothNo || undefined,
           gender,
+          residenceStatus: residenceStatus || undefined,
           voterEligible: voterEligible !== '' ? voterEligible : undefined,
           religion: religion || undefined,
           politicalParty: politicalParty || undefined,
@@ -83,7 +85,7 @@ const Members = () => {
 
   useEffect(() => {
     fetchMembers();
-  }, [selectedWard, search, boothNo, gender, voterEligible, religion, politicalParty, page]);
+  }, [selectedWard, search, boothNo, gender, residenceStatus, voterEligible, religion, politicalParty, page]);
 
   return (
     <div className="space-y-6">
@@ -183,6 +185,20 @@ const Members = () => {
             <option value="other">Other</option>
           </select>
 
+          {/* Residence Status Filter (IN / OUT) */}
+          <select
+            value={residenceStatus}
+            onChange={(e) => {
+              setResidenceStatus(e.target.value);
+              setPage(1);
+            }}
+            className="text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-700 font-semibold focus:outline-hidden focus:border-emerald-500"
+          >
+            <option value="">All Residence (Local & NRI)</option>
+            <option value="in">Local Resident (IN)</option>
+            <option value="out">Living Abroad / NRI (OUT)</option>
+          </select>
+
           {/* Voter Eligibility Filter */}
           <select
             value={voterEligible}
@@ -225,6 +241,7 @@ const Members = () => {
                   <th className="py-3 px-3">Father / Husband Name</th>
                   <th className="py-3 px-3">Door No</th>
                   <th className="py-3 px-3">Locality</th>
+                  <th className="py-3 px-3 text-center">Residence</th>
                   <th className="py-3 px-2 text-center">Gender / Age</th>
                   <th className="py-3 px-3">Religion</th>
                   <th className="py-3 px-3">Political Party</th>
@@ -265,6 +282,24 @@ const Members = () => {
                       </td>
                       <td className="py-3.5 px-3 text-slate-600">
                         {fam.locality || '—'}
+                      </td>
+                      <td className="py-3.5 px-3 text-center">
+                        {m.residenceStatus === 'out' ? (
+                          <div className="inline-flex flex-col items-center">
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-amber-50 text-amber-900 border border-amber-200">
+                              Abroad (OUT)
+                            </span>
+                            {m.foreignCountry && (
+                              <span className="text-[10px] font-semibold text-amber-700 mt-0.5 truncate max-w-[120px]" title={m.foreignCountry}>
+                                {m.foreignCountry}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                            Local (IN)
+                          </span>
+                        )}
                       </td>
                       <td className="py-3.5 px-2 text-center capitalize text-slate-600">
                         {m.gender} • <span className="font-bold text-slate-900">{m.age ?? '—'}</span>

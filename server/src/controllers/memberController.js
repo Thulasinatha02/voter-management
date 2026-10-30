@@ -25,6 +25,8 @@ const memberCreateSchema = z.object({
   occupation: z.string().optional().default(''),
   education: z.string().optional().default(''),
   status: z.enum(['complete', 'incomplete']).default('complete'),
+  residenceStatus: z.enum(['in', 'out']).default('in'),
+  foreignCountry: z.string().optional().default(''),
 });
 
 // @desc List members with search and ward filtering
@@ -38,6 +40,7 @@ const getMembers = async (req, res, next) => {
       gender,
       relationship,
       status,
+      residenceStatus,
       voterEligible,
       religion,
       politicalParty,
@@ -63,6 +66,7 @@ const getMembers = async (req, res, next) => {
     if (gender) query.gender = gender;
     if (relationship) query.relationship = relationship;
     if (status) query.status = status;
+    if (residenceStatus) query.residenceStatus = residenceStatus;
     if (religion) query.religion = religion;
     if (boothNo) query.boothNo = { $regex: boothNo, $options: 'i' };
     if (politicalParty) {
@@ -192,6 +196,8 @@ const createMember = async (req, res, next) => {
       occupation,
       education,
       status,
+      residenceStatus: parsed.data.residenceStatus || 'in',
+      foreignCountry: parsed.data.residenceStatus === 'out' ? (parsed.data.foreignCountry || '').trim() : '',
       isVoterEligible: age ? age >= 18 : true,
       createdBy: req.user._id,
     });

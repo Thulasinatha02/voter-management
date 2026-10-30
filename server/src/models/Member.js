@@ -129,6 +129,17 @@ const memberSchema = new mongoose.Schema(
       default: 'complete',
       index: true,
     },
+    residenceStatus: {
+      type: String,
+      enum: ['in', 'out'],
+      default: 'in',
+      index: true,
+    },
+    foreignCountry: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     isVoterEligible: {
       type: Boolean,
       default: function () {

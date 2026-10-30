@@ -63,6 +63,8 @@ const FamilyForm = () => {
       occupation: '',
       education: '',
       status: 'complete',
+      residenceStatus: 'in',
+      foreignCountry: '',
     },
   ]);
 
@@ -113,6 +115,8 @@ const FamilyForm = () => {
         occupation: '',
         education: '',
         status: 'complete',
+        residenceStatus: 'in',
+        foreignCountry: '',
       },
     ]);
   };
@@ -615,6 +619,60 @@ const FamilyForm = () => {
                         className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl focus:outline-hidden focus:border-emerald-500 font-medium"
                       />
                     </div>
+                  </div>
+
+                  {/* Tier 4: Residence Status (IN / OUT - Living in Ward vs Living Abroad / NRI) */}
+                  <div className="pt-2 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
+                    <div className="sm:col-span-5">
+                      <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1.5">
+                        Residence Status / குடியிருப்பு நிலை
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            updateMemberField(idx, 'residenceStatus', 'in');
+                            updateMemberField(idx, 'foreignCountry', '');
+                          }}
+                          className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1.5 ${
+                            member.residenceStatus === 'in' || !member.residenceStatus
+                              ? 'bg-emerald-50 border-emerald-500 text-emerald-800 shadow-xs'
+                              : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                          }`}
+                        >
+                          <span className={`w-2 h-2 rounded-full ${member.residenceStatus === 'in' || !member.residenceStatus ? 'bg-emerald-600' : 'bg-slate-300'}`} />
+                          <span>Local (IN) / உள்ளூர்</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => updateMemberField(idx, 'residenceStatus', 'out')}
+                          className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1.5 ${
+                            member.residenceStatus === 'out'
+                              ? 'bg-amber-50 border-amber-500 text-amber-900 shadow-xs'
+                              : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                          }`}
+                        >
+                          <span className={`w-2 h-2 rounded-full ${member.residenceStatus === 'out' ? 'bg-amber-500' : 'bg-slate-300'}`} />
+                          <span>Abroad (OUT) / வெளிநாடு</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {member.residenceStatus === 'out' && (
+                      <div className="sm:col-span-7 animate-in fade-in slide-in-from-left-2 duration-150">
+                        <label className="block text-[10px] uppercase font-bold text-amber-800 mb-1">
+                          Foreign Country / City (வெளிநாட்டு பெயர்) *
+                        </label>
+                        <input
+                          type="text"
+                          value={member.foreignCountry || ''}
+                          onChange={(e) => updateMemberField(idx, 'foreignCountry', e.target.value)}
+                          placeholder="e.g. Dubai, UAE / Singapore / London, UK / USA / Malaysia"
+                          className="w-full px-3 py-2 bg-amber-50/50 border border-amber-300 rounded-xl focus:outline-hidden focus:border-amber-500 focus:bg-white font-bold text-amber-950 placeholder:text-amber-700/50"
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

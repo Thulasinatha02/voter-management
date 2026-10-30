@@ -140,6 +140,8 @@ const FamilyDetails = () => {
       occupation: m.occupation || '',
       education: m.education || '',
       status: m.status || 'complete',
+      residenceStatus: m.residenceStatus || 'in',
+      foreignCountry: m.foreignCountry || '',
     });
     setIsEditMemberOpen(true);
   };
@@ -153,6 +155,8 @@ const FamilyDetails = () => {
         ...editingMember,
         age: editingMember.age !== '' ? Number(editingMember.age) : undefined,
         politicalParty: editingMember.politicalParty || '',
+        residenceStatus: editingMember.residenceStatus || 'in',
+        foreignCountry: editingMember.residenceStatus === 'out' ? (editingMember.foreignCountry || '').trim() : '',
       });
       setIsEditMemberOpen(false);
       setEditingMember(null);
@@ -174,6 +178,8 @@ const FamilyDetails = () => {
         age: newMember.age ? Number(newMember.age) : undefined,
         doorNo: newMember.doorNo || family.houseNo,
         politicalParty: newMember.politicalParty || undefined,
+        residenceStatus: newMember.residenceStatus || 'in',
+        foreignCountry: newMember.residenceStatus === 'out' ? (newMember.foreignCountry || '').trim() : '',
       });
       setIsAddMemberOpen(false);
       setNewMember({
@@ -192,6 +198,8 @@ const FamilyDetails = () => {
         occupation: '',
         education: '',
         status: 'complete',
+        residenceStatus: 'in',
+        foreignCountry: '',
       });
       fetchFamily();
     } catch (err) {
@@ -400,6 +408,7 @@ const FamilyDetails = () => {
                 <th className="py-3 px-4">Booth / Serial</th>
                 <th className="py-3 px-4">Gender & Age</th>
                 <th className="py-3 px-4">Religion & Party</th>
+                <th className="py-3 px-4 text-center">Residence</th>
                 <th className="py-3 px-4">Relationship</th>
                 <th className="py-3 px-4 text-center">Status</th>
                 <th className="py-3 px-4 text-center">Action</th>
@@ -435,6 +444,24 @@ const FamilyDetails = () => {
                       <div className="text-[10px] font-bold text-teal-700">
                         {m.politicalParty?.abbreviation || m.politicalParty?.partyName}
                       </div>
+                    )}
+                  </td>
+                  <td className="py-3.5 px-4 text-center">
+                    {m.residenceStatus === 'out' ? (
+                      <div className="inline-flex flex-col items-center">
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-amber-50 text-amber-900 border border-amber-200">
+                          Abroad (OUT)
+                        </span>
+                        {m.foreignCountry && (
+                          <span className="text-[10px] font-semibold text-amber-700 mt-0.5 truncate max-w-[110px]" title={m.foreignCountry}>
+                            {m.foreignCountry}
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                        Local (IN)
+                      </span>
                     )}
                   </td>
                   <td className="py-3.5 px-4 capitalize text-slate-700 font-medium whitespace-nowrap">
@@ -665,6 +692,55 @@ const FamilyDetails = () => {
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:border-emerald-500 font-medium"
                   />
                 </div>
+              </div>
+
+              {/* Row 6: Residence Status (IN / OUT) */}
+              <div className="pt-2 border-t border-slate-100 space-y-2">
+                <label className="block font-bold text-slate-700 text-xs">
+                  Residence Status / குடியிருப்பு நிலை
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setNewMember({ ...newMember, residenceStatus: 'in', foreignCountry: '' })}
+                    className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1.5 ${
+                      newMember.residenceStatus === 'in' || !newMember.residenceStatus
+                        ? 'bg-emerald-50 border-emerald-500 text-emerald-800 shadow-xs'
+                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className={`w-2 h-2 rounded-full ${newMember.residenceStatus === 'in' || !newMember.residenceStatus ? 'bg-emerald-600' : 'bg-slate-300'}`} />
+                    <span>Local Resident (IN)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setNewMember({ ...newMember, residenceStatus: 'out' })}
+                    className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1.5 ${
+                      newMember.residenceStatus === 'out'
+                        ? 'bg-amber-50 border-amber-500 text-amber-900 shadow-xs'
+                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className={`w-2 h-2 rounded-full ${newMember.residenceStatus === 'out' ? 'bg-amber-500' : 'bg-slate-300'}`} />
+                    <span>Living Abroad / NRI (OUT)</span>
+                  </button>
+                </div>
+
+                {newMember.residenceStatus === 'out' && (
+                  <div className="pt-1 animate-in fade-in slide-in-from-top-1 duration-150">
+                    <label className="block font-bold text-amber-800 text-xs mb-1">
+                      Foreign Country / City (வெளிநாட்டு பெயர்) *
+                    </label>
+                    <input
+                      type="text"
+                      value={newMember.foreignCountry || ''}
+                      onChange={(e) => setNewMember({ ...newMember, foreignCountry: e.target.value })}
+                      placeholder="e.g. Dubai, UAE / Singapore / London, UK / USA"
+                      className="w-full px-3 py-2 bg-amber-50/50 border border-amber-300 rounded-xl focus:outline-hidden focus:border-amber-500 font-bold text-amber-950"
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="pt-3 flex items-center justify-end gap-2">
@@ -911,6 +987,55 @@ const FamilyDetails = () => {
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:border-emerald-500 font-medium"
                   />
                 </div>
+              </div>
+
+              {/* Row 6: Residence Status (IN / OUT) */}
+              <div className="pt-2 border-t border-slate-100 space-y-2">
+                <label className="block font-bold text-slate-700 text-xs">
+                  Residence Status / குடியிருப்பு நிலை
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingMember({ ...editingMember, residenceStatus: 'in', foreignCountry: '' })}
+                    className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1.5 ${
+                      editingMember.residenceStatus === 'in' || !editingMember.residenceStatus
+                        ? 'bg-emerald-50 border-emerald-500 text-emerald-800 shadow-xs'
+                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className={`w-2 h-2 rounded-full ${editingMember.residenceStatus === 'in' || !editingMember.residenceStatus ? 'bg-emerald-600' : 'bg-slate-300'}`} />
+                    <span>Local Resident (IN)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setEditingMember({ ...editingMember, residenceStatus: 'out' })}
+                    className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1.5 ${
+                      editingMember.residenceStatus === 'out'
+                        ? 'bg-amber-50 border-amber-500 text-amber-900 shadow-xs'
+                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className={`w-2 h-2 rounded-full ${editingMember.residenceStatus === 'out' ? 'bg-amber-500' : 'bg-slate-300'}`} />
+                    <span>Living Abroad / NRI (OUT)</span>
+                  </button>
+                </div>
+
+                {editingMember.residenceStatus === 'out' && (
+                  <div className="pt-1 animate-in fade-in slide-in-from-top-1 duration-150">
+                    <label className="block font-bold text-amber-800 text-xs mb-1">
+                      Foreign Country / City (வெளிநாட்டு பெயர்) *
+                    </label>
+                    <input
+                      type="text"
+                      value={editingMember.foreignCountry || ''}
+                      onChange={(e) => setEditingMember({ ...editingMember, foreignCountry: e.target.value })}
+                      placeholder="e.g. Dubai, UAE / Singapore / London, UK / USA"
+                      className="w-full px-3 py-2 bg-amber-50/50 border border-amber-300 rounded-xl focus:outline-hidden focus:border-amber-500 font-bold text-amber-950"
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="pt-3 flex items-center justify-end gap-2">

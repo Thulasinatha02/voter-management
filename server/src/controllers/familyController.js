@@ -22,6 +22,8 @@ const memberSubSchema = z.object({
   occupation: z.string().optional().default(''),
   education: z.string().optional().default(''),
   status: z.enum(['complete', 'incomplete']).default('complete'),
+  residenceStatus: z.enum(['in', 'out']).default('in'),
+  foreignCountry: z.string().optional().default(''),
 });
 
 const familySchema = z.object({
@@ -213,6 +215,8 @@ const createFamily = async (req, res, next) => {
         occupation: m.occupation,
         education: m.education,
         status: m.status || 'complete',
+        residenceStatus: m.residenceStatus || 'in',
+        foreignCountry: m.residenceStatus === 'out' ? (m.foreignCountry || '').trim() : '',
         isVoterEligible: m.age ? m.age >= 18 : true,
         createdBy: req.user._id,
       }));
