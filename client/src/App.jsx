@@ -38,16 +38,19 @@ const ProtectedRoute = ({ children, allowedRoles, requiredPermission }) => {
     return children;
   }
 
-  // If role check specified and fails
-  if (allowedRoles && !allowedRoles.includes(user.role)) {
+  // If a granular permission is required:
+  // If the user has that permission enabled, allow access immediately!
+  if (requiredPermission) {
+    if (user.permissions && user.permissions[requiredPermission] === true) {
+      return children;
+    }
+    // If user lacks the granular permission, redirect to dashboard
     return <Navigate to="/dashboard" replace />;
   }
 
-  // If specific permission required, check granular permission
-  if (requiredPermission && user.permissions) {
-    if (!user.permissions[requiredPermission]) {
-      return <Navigate to="/dashboard" replace />;
-    }
+  // Fallback to role-based check if no specific permission required
+  if (allowedRoles && !allowedRoles.includes(user.role)) {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return children;
