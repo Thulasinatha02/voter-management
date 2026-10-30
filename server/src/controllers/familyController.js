@@ -22,6 +22,8 @@ const memberSubSchema = z.object({
   occupation: z.string().optional().default(''),
   education: z.string().optional().default(''),
   status: z.enum(['complete', 'incomplete']).default('complete'),
+  residenceStatus: z.enum(['in', 'out']).default('in'),
+  foreignCountry: z.string().optional().default(''),
 });
 
 const familySchema = z.object({
@@ -68,7 +70,7 @@ const getFamilies = async (req, res, next) => {
 
     const query = { isArchived: isArchived === 'true' };
 
-    if (wardId) {
+    if (wardId && wardId !== 'ALL' && mongoose.Types.ObjectId.isValid(wardId)) {
       query.wardId = wardId;
     } else if (
       req.user.role !== 'superadmin' &&
@@ -170,6 +172,60 @@ const createFamily = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Referenced Ward does not exist.' });
     }
 
+    // Pre-validate serial numbers and voter IDs among new members and against existing DB records
+    if (members.length > 0) {
+      const seenSerials = new Set();
+      const seenVoters = new Set();
+
+      for (const m of members) {
+        const s = (m.serialNo || '').trim();
+        const v = (m.voterId || '').trim().toUpperCase();
+
+        if (s) {
+          if (seenSerials.has(s)) {
+            return res.status(400).json({
+              success: false,
+              message: `Duplicate Serial Number "${s}" entered multiple times in this form.`,
+            });
+          }
+          seenSerials.add(s);
+
+          const existingSerial = await Member.findOne({
+            wardId,
+            serialNo: s,
+            isArchived: false,
+          });
+          if (existingSerial) {
+            return res.status(400).json({
+              success: false,
+              message: `Serial Number "${s}" is already assigned to ${existingSerial.fullName} in this ward.`,
+            });
+          }
+        }
+
+        if (v) {
+          if (seenVoters.has(v)) {
+            return res.status(400).json({
+              success: false,
+              message: `Duplicate Voter ID "${v}" entered multiple times in this form.`,
+            });
+          }
+          seenVoters.add(v);
+
+          const existingVoter = await Member.findOne({
+            voterId: v,
+            isArchived: false,
+          });
+          if (existingVoter) {
+            return res.status(400).json({
+              success: false,
+              message: `Voter ID "${v}" is already registered to ${existingVoter.fullName}.`,
+            });
+          }
+        }
+      }
+    }
+
     const familyCode = await generateFamilyCode(ward.wardCode);
 
     // Create family
@@ -213,6 +269,8 @@ const createFamily = async (req, res, next) => {
         occupation: m.occupation,
         education: m.education,
         status: m.status || 'complete',
+        residenceStatus: m.residenceStatus || 'in',
+        foreignCountry: m.residenceStatus === 'out' ? (m.foreignCountry || '').trim() : '',
         isVoterEligible: m.age ? m.age >= 18 : true,
         createdBy: req.user._id,
       }));

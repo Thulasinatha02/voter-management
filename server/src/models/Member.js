@@ -32,14 +32,12 @@ const memberSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: '',
-      index: true,
     },
     voterId: {
       type: String,
       trim: true,
       uppercase: true,
       default: '',
-      index: true,
     },
     fatherOrHusbandName: {
       type: String,
@@ -129,6 +127,17 @@ const memberSchema = new mongoose.Schema(
       default: 'complete',
       index: true,
     },
+    residenceStatus: {
+      type: String,
+      enum: ['in', 'out'],
+      default: 'in',
+      index: true,
+    },
+    foreignCountry: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     isVoterEligible: {
       type: Boolean,
       default: function () {
@@ -155,7 +164,26 @@ const memberSchema = new mongoose.Schema(
 );
 
 memberSchema.index({ wardId: 1, familyId: 1, isArchived: 1 });
+memberSchema.index({ wardId: 1, isArchived: 1, createdAt: -1 });
+memberSchema.index({ wardId: 1, isArchived: 1, boothNo: 1 });
+memberSchema.index({ wardId: 1, isArchived: 1, residenceStatus: 1 });
 memberSchema.index({ wardId: 1, boothNo: 1, serialNo: 1 });
+// Enforce unique Serial Number per Ward for non-archived records with a non-empty serial number
+memberSchema.index(
+  { wardId: 1, serialNo: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { serialNo: { $gt: '' }, isArchived: false },
+  }
+);
+// Enforce unique Voter ID (EPIC) across active records with a non-empty voterId
+memberSchema.index(
+  { voterId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { voterId: { $gt: '' }, isArchived: false },
+  }
+);
 memberSchema.index({ fullName: 'text', memberCode: 'text', voterId: 'text' });
 memberSchema.index({ politicalParty: 1, wardId: 1 });
 memberSchema.index({ religion: 1, wardId: 1 });

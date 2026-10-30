@@ -25,6 +25,8 @@ const memberCreateSchema = z.object({
   occupation: z.string().optional().default(''),
   education: z.string().optional().default(''),
   status: z.enum(['complete', 'incomplete']).default('complete'),
+  residenceStatus: z.enum(['in', 'out']).default('in'),
+  foreignCountry: z.string().optional().default(''),
 });
 
 // @desc List members with search and ward filtering
@@ -38,6 +40,7 @@ const getMembers = async (req, res, next) => {
       gender,
       relationship,
       status,
+      residenceStatus,
       voterEligible,
       religion,
       politicalParty,
@@ -49,7 +52,7 @@ const getMembers = async (req, res, next) => {
 
     const query = { isArchived: isArchived === 'true' };
 
-    if (wardId) {
+    if (wardId && wardId !== 'ALL' && mongoose.Types.ObjectId.isValid(wardId)) {
       query.wardId = wardId;
     } else if (
       req.user.role !== 'superadmin' &&
@@ -63,6 +66,7 @@ const getMembers = async (req, res, next) => {
     if (gender) query.gender = gender;
     if (relationship) query.relationship = relationship;
     if (status) query.status = status;
+    if (residenceStatus) query.residenceStatus = residenceStatus;
     if (religion) query.religion = religion;
     if (boothNo) query.boothNo = { $regex: boothNo, $options: 'i' };
     if (politicalParty) {
@@ -86,21 +90,32 @@ const getMembers = async (req, res, next) => {
       ];
     }
 
-    const skip = (Number(page) - 1) * Number(limit);
-    const total = await Member.countDocuments(query);
-    const members = await Member.find(query)
-      .populate('wardId', 'wardCode wardName locality')
-      .populate('familyId', 'familyCode houseNo street locality headOfFamilyName')
-      .populate('politicalParty', 'partyCode partyName')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(Number(limit));
+    const parsedLimit = Math.min(Math.max(parseInt(limit, 10) || 25, 5), 100);
+    const parsedPage = Math.max(parseInt(page, 10) || 1, 1);
+    const skip = (parsedPage - 1) * parsedLimit;
+
+    // Execute count and paginated query in parallel for maximum throughput
+    const [total, members] = await Promise.all([
+      Member.countDocuments(query),
+      Member.find(query)
+        .select(
+          'memberCode familyId wardId boothNo serialNo voterId fatherOrHusbandName doorNo fullName gender age dateOfBirth religion politicalParty relationship mobilePhone email occupation education status residenceStatus foreignCountry isVoterEligible createdAt'
+        )
+        .populate('wardId', 'wardCode wardName locality')
+        .populate('familyId', 'familyCode houseNo street locality headOfFamilyName contactPhone')
+        .populate('politicalParty', 'partyCode partyName abbreviation')
+        .sort({ createdAt: -1, _id: -1 })
+        .skip(skip)
+        .limit(parsedLimit)
+        .lean(),
+    ]);
 
     res.json({
       success: true,
       total,
-      page: Number(page),
-      pages: Math.ceil(total / Number(limit)),
+      page: parsedPage,
+      limit: parsedLimit,
+      pages: Math.ceil(total / parsedLimit) || 1,
       data: members,
     });
   } catch (error) {
@@ -122,6 +137,66 @@ const getMemberById = async (req, res, next) => {
     }
 
     res.json({ success: true, data: member });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc Check duplicate serialNo in ward or duplicate voterId globally
+// @route GET /api/members/check-duplicate
+const checkDuplicateMember = async (req, res, next) => {
+  try {
+    const { voterId, serialNo, wardId, excludeMemberId } = req.query;
+    const result = {
+      voterIdDuplicate: null,
+      serialNoDuplicate: null,
+    };
+
+    // Check Voter ID duplicate across all active records
+    if (voterId && voterId.trim()) {
+      const vQuery = {
+        voterId: voterId.trim().toUpperCase(),
+        isArchived: false,
+      };
+      if (excludeMemberId && mongoose.Types.ObjectId.isValid(excludeMemberId)) {
+        vQuery._id = { $ne: excludeMemberId };
+      }
+      const existingVoter = await Member.findOne(vQuery)
+        .populate('wardId', 'wardCode wardName')
+        .populate('familyId', 'familyCode headOfFamilyName');
+      if (existingVoter) {
+        result.voterIdDuplicate = {
+          fullName: existingVoter.fullName,
+          wardCode: existingVoter.wardId?.wardCode || '',
+          familyCode: existingVoter.familyId?.familyCode || '',
+          headOfFamilyName: existingVoter.familyId?.headOfFamilyName || '',
+        };
+      }
+    }
+
+    // Check Serial No duplicate within the specific ward
+    if (serialNo && serialNo.trim() && wardId && mongoose.Types.ObjectId.isValid(wardId)) {
+      const sQuery = {
+        wardId,
+        serialNo: serialNo.trim(),
+        isArchived: false,
+      };
+      if (excludeMemberId && mongoose.Types.ObjectId.isValid(excludeMemberId)) {
+        sQuery._id = { $ne: excludeMemberId };
+      }
+      const existingSerial = await Member.findOne(sQuery);
+      if (existingSerial) {
+        result.serialNoDuplicate = {
+          fullName: existingSerial.fullName,
+          serialNo: existingSerial.serialNo,
+        };
+      }
+    }
+
+    res.json({
+      success: true,
+      data: result,
+    });
   } catch (error) {
     next(error);
   }
@@ -158,6 +233,38 @@ const createMember = async (req, res, next) => {
       status,
     } = parsed.data;
 
+    const trimmedSerial = serialNo ? serialNo.trim() : '';
+    const trimmedVoterId = voterId ? voterId.trim().toUpperCase() : '';
+
+    // 1. Verify Serial No uniqueness within this ward
+    if (trimmedSerial) {
+      const existingSerial = await Member.findOne({
+        wardId,
+        serialNo: trimmedSerial,
+        isArchived: false,
+      });
+      if (existingSerial) {
+        return res.status(400).json({
+          success: false,
+          message: `Serial Number "${trimmedSerial}" is already assigned to ${existingSerial.fullName} in this ward.`,
+        });
+      }
+    }
+
+    // 2. Verify Voter ID uniqueness
+    if (trimmedVoterId) {
+      const existingVoter = await Member.findOne({
+        voterId: trimmedVoterId,
+        isArchived: false,
+      });
+      if (existingVoter) {
+        return res.status(400).json({
+          success: false,
+          message: `Voter ID "${trimmedVoterId}" is already registered to ${existingVoter.fullName}.`,
+        });
+      }
+    }
+
     const family = await Family.findById(familyId);
     if (!family) {
       return res.status(404).json({ success: false, message: 'Associated Family not found' });
@@ -176,8 +283,8 @@ const createMember = async (req, res, next) => {
       familyId,
       wardId,
       boothNo: boothNo ? boothNo.trim() : '',
-      serialNo: serialNo ? serialNo.trim() : '',
-      voterId: voterId ? voterId.toUpperCase() : '',
+      serialNo: trimmedSerial,
+      voterId: trimmedVoterId,
       fatherOrHusbandName: fatherOrHusbandName || '',
       doorNo: doorNo || family.houseNo,
       fullName,
@@ -192,6 +299,8 @@ const createMember = async (req, res, next) => {
       occupation,
       education,
       status,
+      residenceStatus: parsed.data.residenceStatus || 'in',
+      foreignCountry: parsed.data.residenceStatus === 'out' ? (parsed.data.foreignCountry || '').trim() : '',
       isVoterEligible: age ? age >= 18 : true,
       createdBy: req.user._id,
     });
@@ -221,6 +330,41 @@ const updateMember = async (req, res, next) => {
     const member = await Member.findById(req.params.id);
     if (!member) {
       return res.status(404).json({ success: false, message: 'Member not found' });
+    }
+
+    const targetWardId = req.body.wardId || member.wardId;
+    const targetSerial = req.body.serialNo !== undefined ? req.body.serialNo.trim() : member.serialNo;
+    const targetVoterId = req.body.voterId !== undefined ? req.body.voterId.trim().toUpperCase() : member.voterId;
+
+    // Check serial number uniqueness if changed or set
+    if (targetSerial) {
+      const existingSerial = await Member.findOne({
+        _id: { $ne: member._id },
+        wardId: targetWardId,
+        serialNo: targetSerial,
+        isArchived: false,
+      });
+      if (existingSerial) {
+        return res.status(400).json({
+          success: false,
+          message: `Serial Number "${targetSerial}" is already assigned to ${existingSerial.fullName} in this ward.`,
+        });
+      }
+    }
+
+    // Check voter ID uniqueness if changed or set
+    if (targetVoterId) {
+      const existingVoter = await Member.findOne({
+        _id: { $ne: member._id },
+        voterId: targetVoterId,
+        isArchived: false,
+      });
+      if (existingVoter) {
+        return res.status(400).json({
+          success: false,
+          message: `Voter ID "${targetVoterId}" is already registered to ${existingVoter.fullName}.`,
+        });
+      }
     }
 
     const updateData = { ...req.body, updatedBy: req.user._id };
@@ -291,10 +435,53 @@ const toggleArchiveMember = async (req, res, next) => {
   }
 };
 
+// @desc Delete member permanently
+// @route DELETE /api/members/:id
+const deleteMember = async (req, res, next) => {
+  try {
+    const member = await Member.findById(req.params.id);
+    if (!member) {
+      return res.status(404).json({ success: false, message: 'Member not found' });
+    }
+
+    const familyId = member.familyId;
+    const wardId = member.wardId;
+    const memberCode = member.memberCode;
+    const fullName = member.fullName;
+
+    await Member.findByIdAndDelete(req.params.id);
+
+    // Adjust family count if not archived
+    if (!member.isArchived) {
+      await Family.findByIdAndUpdate(familyId, {
+        $inc: { memberCount: -1 },
+      });
+    }
+
+    await logAudit({
+      req,
+      action: 'DELETE',
+      entityType: 'Member',
+      entityId: req.params.id,
+      wardId: wardId,
+      details: { memberCode, fullName },
+    });
+
+    res.json({
+      success: true,
+      message: 'Member deleted permanently',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getMembers,
   getMemberById,
+  checkDuplicateMember,
   createMember,
   updateMember,
   toggleArchiveMember,
+  deleteMember,
 };

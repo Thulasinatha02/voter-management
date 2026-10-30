@@ -9,9 +9,10 @@ const AuditLog = require('../models/AuditLog');
 const getDashboardSummary = async (req, res, next) => {
   try {
     const { wardId } = req.query;
-
+    const isAllWards = !wardId || wardId === 'ALL';
     const wardMatch = { isArchived: false };
-    if (wardId && mongoose.Types.ObjectId.isValid(wardId)) {
+
+    if (!isAllWards && mongoose.Types.ObjectId.isValid(wardId)) {
       wardMatch.wardId = new mongoose.Types.ObjectId(wardId);
     } else if (
       req.user.role !== 'superadmin' &&
@@ -23,8 +24,15 @@ const getDashboardSummary = async (req, res, next) => {
 
     // Ward info if single ward chosen
     let wardInfo = null;
-    if (wardId && mongoose.Types.ObjectId.isValid(wardId)) {
+    if (!isAllWards && mongoose.Types.ObjectId.isValid(wardId)) {
       wardInfo = await Ward.findById(wardId).select('wardCode wardName locality district zone totalPopulationEstimate');
+    } else if (isAllWards) {
+      wardInfo = {
+        _id: 'ALL',
+        wardCode: 'ALL',
+        wardName: 'All Wards (Consolidated)',
+        locality: 'Constituency-Wide',
+      };
     }
 
     // 1. Total families & Completion Breakdown
@@ -128,19 +136,66 @@ const getDashboardSummary = async (req, res, next) => {
       { $sort: { _id: 1 } },
     ]);
 
-    // 5. Recent Administrative Activity
+    // 5. Ward breakdown (when viewing All Wards or constituency-wide)
+    let wardBreakdown = [];
+    if (isAllWards) {
+      wardBreakdown = await Family.aggregate([
+        { $match: wardMatch },
+        {
+          $group: {
+            _id: '$wardId',
+            familyCount: { $sum: 1 },
+            completedFamilies: { $sum: { $cond: [{ $eq: ['$status', 'complete'] }, 1, 0] } },
+            memberCount: { $sum: '$memberCount' },
+          },
+        },
+        {
+          $lookup: {
+            from: 'wards',
+            localField: '_id',
+            foreignField: '_id',
+            as: 'ward',
+          },
+        },
+        { $unwind: { path: '$ward', preserveNullAndEmptyArrays: true } },
+        {
+          $project: {
+            _id: 1,
+            wardCode: { $ifNull: ['$ward.wardCode', 'UNKNOWN'] },
+            wardName: { $ifNull: ['$ward.wardName', 'Unnamed Ward'] },
+            locality: { $ifNull: ['$ward.locality', ''] },
+            district: { $ifNull: ['$ward.district', ''] },
+            familyCount: 1,
+            completedFamilies: 1,
+            memberCount: 1,
+            completionRate: {
+              $cond: [
+                { $gt: ['$familyCount', 0] },
+                { $round: [{ $multiply: [{ $divide: ['$completedFamilies', '$familyCount'] }, 100] }, 0] },
+                0,
+              ],
+            },
+          },
+        },
+        { $sort: { wardCode: 1 } },
+      ]);
+    }
+
+    // 6. Recent Administrative Activity
     const auditQuery = {};
     if (wardMatch.wardId) {
       auditQuery.$or = [{ wardId: wardMatch.wardId }, { wardId: { $exists: false } }];
     }
 
     const recentActivity = await AuditLog.find(auditQuery)
+      .populate('userId', 'username fullName role')
       .sort({ createdAt: -1 })
       .limit(6);
 
     res.json({
       success: true,
       data: {
+        isAllWards,
         ward: wardInfo,
         totals: {
           families: familySummary.totalFamilies,
@@ -154,6 +209,7 @@ const getDashboardSummary = async (req, res, next) => {
             ? Math.round((familySummary.completedFamilies / familySummary.totalFamilies) * 100)
             : 0,
         },
+        wardBreakdown,
         genderDistribution: {
           male: memberSummary.maleCount,
           female: memberSummary.femaleCount,

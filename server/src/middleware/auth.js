@@ -44,15 +44,20 @@ const authorize = (...roles) => {
 
 // Check if user is allowed to access/modify data for this wardId
 const verifyWardAccess = (req, res, next) => {
-  const wardId = req.params.wardId || req.query.wardId || req.body.wardId;
+  const wardId = req.params?.wardId || req.query?.wardId || req.body?.wardId;
 
   // Superadmins and Auditors can access all wards
   if (req.user.role === 'superadmin' || req.user.role === 'auditor') {
     return next();
   }
 
+  // If user requests ALL wards, allow if they have assigned wards (controller will scope to their assigned wards)
+  if (!wardId || wardId === 'ALL') {
+    return next();
+  }
+
   // If user has specific assigned wards
-  if (wardId && req.user.assignedWards && req.user.assignedWards.length > 0) {
+  if (req.user.assignedWards && req.user.assignedWards.length > 0) {
     const isAssigned = req.user.assignedWards.some(
       (id) => id.toString() === wardId.toString()
     );
@@ -67,4 +72,23 @@ const verifyWardAccess = (req, res, next) => {
   next();
 };
 
-module.exports = { protect, authorize, verifyWardAccess };
+// Check if user has specific module-level permission
+const checkPermission = (permissionName) => {
+  return (req, res, next) => {
+    // Superadmin has universal permission
+    if (req.user?.role === 'superadmin') {
+      return next();
+    }
+
+    if (req.user?.permissions && req.user.permissions[permissionName] === true) {
+      return next();
+    }
+
+    return res.status(403).json({
+      success: false,
+      message: `Access denied: You do not have permission for the '${permissionName}' module.`,
+    });
+  };
+};
+
+module.exports = { protect, authorize, verifyWardAccess, checkPermission };

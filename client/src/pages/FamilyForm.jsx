@@ -63,6 +63,8 @@ const FamilyForm = () => {
       occupation: '',
       education: '',
       status: 'complete',
+      residenceStatus: 'in',
+      foreignCountry: '',
     },
   ]);
 
@@ -113,6 +115,8 @@ const FamilyForm = () => {
         occupation: '',
         education: '',
         status: 'complete',
+        residenceStatus: 'in',
+        foreignCountry: '',
       },
     ]);
   };
@@ -125,6 +129,90 @@ const FamilyForm = () => {
     setMembers(members.filter((_, i) => i !== index));
   };
 
+  const [duplicateWarnings, setDuplicateWarnings] = useState({});
+
+  const checkFieldDuplicate = async (index, field, value) => {
+    const val = (value || '').trim();
+    const key = `${index}_${field}`;
+
+    if (!val) {
+      setDuplicateWarnings((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+      return;
+    }
+
+    // 1. Check local in-form duplicates
+    if (field === 'voterId') {
+      const upperVal = val.toUpperCase();
+      const localDupIndex = members.findIndex(
+        (m, idx) => idx !== index && (m.voterId || '').trim().toUpperCase() === upperVal
+      );
+      if (localDupIndex !== -1) {
+        const otherName = members[localDupIndex].fullName || `Member #${localDupIndex + 1}`;
+        setDuplicateWarnings((prev) => ({
+          ...prev,
+          [key]: `Duplicate Voter ID: Already entered above for "${otherName}"`,
+        }));
+        return;
+      }
+    }
+
+    if (field === 'serialNo') {
+      const localDupIndex = members.findIndex(
+        (m, idx) => idx !== index && (m.serialNo || '').trim() === val
+      );
+      if (localDupIndex !== -1) {
+        const otherName = members[localDupIndex].fullName || `Member #${localDupIndex + 1}`;
+        setDuplicateWarnings((prev) => ({
+          ...prev,
+          [key]: `Duplicate Serial No: Already entered above for "${otherName}"`,
+        }));
+        return;
+      }
+    }
+
+    // 2. Query backend for database duplicates
+    try {
+      const params = {};
+      if (field === 'voterId') params.voterId = val;
+      if (field === 'serialNo') {
+        params.serialNo = val;
+        params.wardId = wardId;
+      }
+
+      const res = await api.get('/members/check-duplicate', { params });
+      if (res.data.success) {
+        const { voterIdDuplicate, serialNoDuplicate } = res.data.data;
+        if (field === 'voterId' && voterIdDuplicate) {
+          setDuplicateWarnings((prev) => ({
+            ...prev,
+            [key]: `Duplicate Voter ID found: Already registered to ${voterIdDuplicate.fullName} (${voterIdDuplicate.wardCode || 'Ward'})`,
+          }));
+          return;
+        }
+        if (field === 'serialNo' && serialNoDuplicate) {
+          setDuplicateWarnings((prev) => ({
+            ...prev,
+            [key]: `Serial No "${val}" already assigned to ${serialNoDuplicate.fullName} in this ward`,
+          }));
+          return;
+        }
+
+        // Clear warning if valid
+        setDuplicateWarnings((prev) => {
+          const next = { ...prev };
+          delete next[key];
+          return next;
+        });
+      }
+    } catch (err) {
+      console.error('Error checking duplicate:', err);
+    }
+  };
+
   const updateMemberField = (index, field, value) => {
     const updated = [...members];
     updated[index][field] = value;
@@ -132,6 +220,10 @@ const FamilyForm = () => {
       setHeadOfFamilyName(value);
     }
     setMembers(updated);
+
+    if (field === 'voterId' || field === 'serialNo') {
+      checkFieldDuplicate(index, field, value);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -437,8 +529,18 @@ const FamilyForm = () => {
                         value={member.serialNo}
                         onChange={(e) => updateMemberField(idx, 'serialNo', e.target.value)}
                         placeholder="e.g. 104"
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl focus:outline-hidden focus:border-emerald-500 font-bold"
+                        className={`w-full px-3 py-2 bg-white border rounded-xl focus:outline-hidden font-bold ${
+                          duplicateWarnings[`${idx}_serialNo`]
+                            ? 'border-rose-400 bg-rose-50/40 text-rose-900 focus:border-rose-500'
+                            : 'border-slate-200 focus:border-emerald-500'
+                        }`}
                       />
+                      {duplicateWarnings[`${idx}_serialNo`] && (
+                        <p className="mt-1 text-[10px] font-bold text-rose-600 flex items-center gap-1 animate-in fade-in">
+                          <AlertCircle className="w-3 h-3 shrink-0" />
+                          <span>{duplicateWarnings[`${idx}_serialNo`]}</span>
+                        </p>
+                      )}
                     </div>
 
                     <div className="sm:col-span-3">
@@ -450,8 +552,18 @@ const FamilyForm = () => {
                         value={member.voterId}
                         onChange={(e) => updateMemberField(idx, 'voterId', e.target.value.toUpperCase())}
                         placeholder="e.g. ABC1234567"
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl focus:outline-hidden focus:border-emerald-500 font-mono font-bold uppercase text-emerald-800"
+                        className={`w-full px-3 py-2 bg-white border rounded-xl focus:outline-hidden font-mono font-bold uppercase ${
+                          duplicateWarnings[`${idx}_voterId`]
+                            ? 'border-rose-400 bg-rose-50/40 text-rose-900 focus:border-rose-500'
+                            : 'border-slate-200 text-emerald-800 focus:border-emerald-500'
+                        }`}
                       />
+                      {duplicateWarnings[`${idx}_voterId`] && (
+                        <p className="mt-1 text-[10px] font-bold text-rose-600 flex items-center gap-1 animate-in fade-in">
+                          <AlertCircle className="w-3 h-3 shrink-0" />
+                          <span>{duplicateWarnings[`${idx}_voterId`]}</span>
+                        </p>
+                      )}
                     </div>
 
                     <div className="sm:col-span-3">
@@ -615,6 +727,60 @@ const FamilyForm = () => {
                         className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl focus:outline-hidden focus:border-emerald-500 font-medium"
                       />
                     </div>
+                  </div>
+
+                  {/* Tier 4: Residence Status (IN / OUT - Living in Ward vs Living Abroad / NRI) */}
+                  <div className="pt-2 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
+                    <div className="sm:col-span-5">
+                      <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1.5">
+                        Residence Status / குடியிருப்பு நிலை
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            updateMemberField(idx, 'residenceStatus', 'in');
+                            updateMemberField(idx, 'foreignCountry', '');
+                          }}
+                          className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1.5 ${
+                            member.residenceStatus === 'in' || !member.residenceStatus
+                              ? 'bg-emerald-50 border-emerald-500 text-emerald-800 shadow-xs'
+                              : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                          }`}
+                        >
+                          <span className={`w-2 h-2 rounded-full ${member.residenceStatus === 'in' || !member.residenceStatus ? 'bg-emerald-600' : 'bg-slate-300'}`} />
+                          <span>Local (IN) / உள்ளூர்</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => updateMemberField(idx, 'residenceStatus', 'out')}
+                          className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1.5 ${
+                            member.residenceStatus === 'out'
+                              ? 'bg-amber-50 border-amber-500 text-amber-900 shadow-xs'
+                              : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                          }`}
+                        >
+                          <span className={`w-2 h-2 rounded-full ${member.residenceStatus === 'out' ? 'bg-amber-500' : 'bg-slate-300'}`} />
+                          <span>Abroad (OUT) / வெளிநாடு</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {member.residenceStatus === 'out' && (
+                      <div className="sm:col-span-7 animate-in fade-in slide-in-from-left-2 duration-150">
+                        <label className="block text-[10px] uppercase font-bold text-amber-800 mb-1">
+                          Foreign Country / City (வெளிநாட்டு பெயர்) *
+                        </label>
+                        <input
+                          type="text"
+                          value={member.foreignCountry || ''}
+                          onChange={(e) => updateMemberField(idx, 'foreignCountry', e.target.value)}
+                          placeholder="e.g. Dubai, UAE / Singapore / London, UK / USA / Malaysia"
+                          className="w-full px-3 py-2 bg-amber-50/50 border border-amber-300 rounded-xl focus:outline-hidden focus:border-amber-500 focus:bg-white font-bold text-amber-950 placeholder:text-amber-700/50"
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

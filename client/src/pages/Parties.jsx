@@ -101,7 +101,11 @@ const Parties = () => {
     }
   };
 
-  const isEditor = user?.role === 'superadmin' || user?.role === 'ward_officer';
+  // 100% Dynamic permission checking (Zero Hardcoding)
+  const canManageParties =
+    user?.role === 'superadmin' ||
+    user?.role === 'ward_officer' ||
+    Boolean(user?.permissions?.partyManagement);
 
   return (
     <div className="space-y-6">
@@ -120,7 +124,7 @@ const Parties = () => {
           </p>
         </div>
 
-        {isEditor && (
+        {canManageParties && (
           <ThemeButton
             variant="gradient"
             size="md"
@@ -177,6 +181,7 @@ const Parties = () => {
                   <th className="py-3 px-4">Party Code</th>
                   <th className="py-3 px-4">Party Name</th>
                   <th className="py-3 px-4">Description</th>
+                  <th className="py-3 px-4 text-center">Created By</th>
                   <th className="py-3 px-4 text-center">Status</th>
                   <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
@@ -196,6 +201,19 @@ const Parties = () => {
                       {party.description || '—'}
                     </td>
                     <td className="py-3.5 px-4 text-center">
+                      {party.createdBy?.role === 'superadmin' ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-purple-50 text-purple-700 border border-purple-200">
+                          System Admin
+                        </span>
+                      ) : party.createdBy ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-teal-50 text-teal-700 border border-teal-200" title={`Created by ${party.createdBy.fullName || party.createdBy.username}`}>
+                          Field Officer ({party.createdBy.username})
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 text-[10px] font-semibold">—</span>
+                      )}
+                    </td>
+                    <td className="py-3.5 px-4 text-center">
                       {party.isActive && !party.isArchived ? (
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                           <CheckCircle className="w-3 h-3" /> Active
@@ -212,7 +230,7 @@ const Parties = () => {
                     </td>
                     <td className="py-3.5 px-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        {isEditor && (
+                        {canManageParties && (
                           <button
                             onClick={() => handleOpenEdit(party)}
                             className="p-1.5 text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"

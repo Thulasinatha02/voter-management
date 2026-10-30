@@ -46,6 +46,82 @@ const FamilyDetails = () => {
     contactPhone: '',
     status: 'complete',
   });
+  const [addDupWarning, setAddDupWarning] = useState({ voterId: '', serialNo: '' });
+  const [editDupWarning, setEditDupWarning] = useState({ voterId: '', serialNo: '' });
+
+  const checkMemberDuplicate = async (field, value, isEditing = false, excludeId = null) => {
+    const val = (value || '').trim();
+    const setFn = isEditing ? setEditDupWarning : setAddDupWarning;
+
+    if (!val) {
+      setFn((prev) => ({ ...prev, [field]: '' }));
+      return;
+    }
+
+    // Check against members currently loaded in this family
+    if (field === 'voterId') {
+      const upperVal = val.toUpperCase();
+      const localDup = members.find(
+        (m) => (!excludeId || m._id !== excludeId) && (m.voterId || '').trim().toUpperCase() === upperVal
+      );
+      if (localDup) {
+        setFn((prev) => ({
+          ...prev,
+          voterId: `Duplicate Voter ID: Already registered to ${localDup.fullName} in this household`,
+        }));
+        return;
+      }
+    }
+
+    if (field === 'serialNo') {
+      const localDup = members.find(
+        (m) => (!excludeId || m._id !== excludeId) && (m.serialNo || '').trim() === val
+      );
+      if (localDup) {
+        setFn((prev) => ({
+          ...prev,
+          serialNo: `Serial No "${val}" already used by ${localDup.fullName} in this household`,
+        }));
+        return;
+      }
+    }
+
+    // Query backend for database-wide check
+    try {
+      const targetWardId = family?.wardId?._id || family?.wardId;
+      const params = {};
+      if (excludeId) params.excludeMemberId = excludeId;
+      if (field === 'voterId') params.voterId = val;
+      if (field === 'serialNo') {
+        params.serialNo = val;
+        params.wardId = targetWardId;
+      }
+
+      const res = await api.get('/members/check-duplicate', { params });
+      if (res.data.success) {
+        const { voterIdDuplicate, serialNoDuplicate } = res.data.data;
+        if (field === 'voterId' && voterIdDuplicate) {
+          setFn((prev) => ({
+            ...prev,
+            voterId: `Duplicate Voter ID found: Already registered to ${voterIdDuplicate.fullName} (${voterIdDuplicate.wardCode || 'Ward'})`,
+          }));
+          return;
+        }
+        if (field === 'serialNo' && serialNoDuplicate) {
+          setFn((prev) => ({
+            ...prev,
+            serialNo: `Serial No "${val}" already assigned to ${serialNoDuplicate.fullName} in this ward`,
+          }));
+          return;
+        }
+
+        setFn((prev) => ({ ...prev, [field]: '' }));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const [newMember, setNewMember] = useState({
     boothNo: 'Booth 01',
     serialNo: '',
@@ -140,6 +216,8 @@ const FamilyDetails = () => {
       occupation: m.occupation || '',
       education: m.education || '',
       status: m.status || 'complete',
+      residenceStatus: m.residenceStatus || 'in',
+      foreignCountry: m.foreignCountry || '',
     });
     setIsEditMemberOpen(true);
   };
@@ -153,6 +231,8 @@ const FamilyDetails = () => {
         ...editingMember,
         age: editingMember.age !== '' ? Number(editingMember.age) : undefined,
         politicalParty: editingMember.politicalParty || '',
+        residenceStatus: editingMember.residenceStatus || 'in',
+        foreignCountry: editingMember.residenceStatus === 'out' ? (editingMember.foreignCountry || '').trim() : '',
       });
       setIsEditMemberOpen(false);
       setEditingMember(null);
@@ -174,6 +254,8 @@ const FamilyDetails = () => {
         age: newMember.age ? Number(newMember.age) : undefined,
         doorNo: newMember.doorNo || family.houseNo,
         politicalParty: newMember.politicalParty || undefined,
+        residenceStatus: newMember.residenceStatus || 'in',
+        foreignCountry: newMember.residenceStatus === 'out' ? (newMember.foreignCountry || '').trim() : '',
       });
       setIsAddMemberOpen(false);
       setNewMember({
@@ -192,6 +274,8 @@ const FamilyDetails = () => {
         occupation: '',
         education: '',
         status: 'complete',
+        residenceStatus: 'in',
+        foreignCountry: '',
       });
       fetchFamily();
     } catch (err) {
@@ -400,6 +484,7 @@ const FamilyDetails = () => {
                 <th className="py-3 px-4">Booth / Serial</th>
                 <th className="py-3 px-4">Gender & Age</th>
                 <th className="py-3 px-4">Religion & Party</th>
+                <th className="py-3 px-4 text-center">Residence</th>
                 <th className="py-3 px-4">Relationship</th>
                 <th className="py-3 px-4 text-center">Status</th>
                 <th className="py-3 px-4 text-center">Action</th>
@@ -435,6 +520,24 @@ const FamilyDetails = () => {
                       <div className="text-[10px] font-bold text-teal-700">
                         {m.politicalParty?.abbreviation || m.politicalParty?.partyName}
                       </div>
+                    )}
+                  </td>
+                  <td className="py-3.5 px-4 text-center">
+                    {m.residenceStatus === 'out' ? (
+                      <div className="inline-flex flex-col items-center">
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-amber-50 text-amber-900 border border-amber-200">
+                          Abroad (OUT)
+                        </span>
+                        {m.foreignCountry && (
+                          <span className="text-[10px] font-semibold text-amber-700 mt-0.5 truncate max-w-[110px]" title={m.foreignCountry}>
+                            {m.foreignCountry}
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                        Local (IN)
+                      </span>
                     )}
                   </td>
                   <td className="py-3.5 px-4 capitalize text-slate-700 font-medium whitespace-nowrap">
@@ -505,20 +608,48 @@ const FamilyDetails = () => {
                     type="text"
                     inputMode="numeric"
                     value={newMember.serialNo}
-                    onChange={(e) => setNewMember({ ...newMember, serialNo: e.target.value })}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setNewMember({ ...newMember, serialNo: val });
+                      checkMemberDuplicate('serialNo', val, false);
+                    }}
                     placeholder="e.g. 104"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:border-emerald-500 font-bold"
+                    className={`w-full px-3 py-2 bg-slate-50 border rounded-xl focus:outline-hidden font-bold ${
+                      addDupWarning.serialNo
+                        ? 'border-rose-400 bg-rose-50/40 text-rose-900 focus:border-rose-500'
+                        : 'border-slate-200 focus:border-emerald-500'
+                    }`}
                   />
+                  {addDupWarning.serialNo && (
+                    <p className="mt-1 text-[10px] font-bold text-rose-600 flex items-center gap-1 animate-in fade-in">
+                      <AlertCircle className="w-3 h-3 shrink-0" />
+                      <span>{addDupWarning.serialNo}</span>
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">Voter ID (EPIC)</label>
                   <input
                     type="text"
                     value={newMember.voterId}
-                    onChange={(e) => setNewMember({ ...newMember, voterId: e.target.value.toUpperCase() })}
+                    onChange={(e) => {
+                      const val = e.target.value.toUpperCase();
+                      setNewMember({ ...newMember, voterId: val });
+                      checkMemberDuplicate('voterId', val, false);
+                    }}
                     placeholder="e.g. ABC1234567"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:border-emerald-500 font-mono font-bold uppercase text-emerald-800"
+                    className={`w-full px-3 py-2 bg-slate-50 border rounded-xl focus:outline-hidden font-mono font-bold uppercase ${
+                      addDupWarning.voterId
+                        ? 'border-rose-400 bg-rose-50/40 text-rose-900 focus:border-rose-500'
+                        : 'border-slate-200 text-emerald-800 focus:border-emerald-500'
+                    }`}
                   />
+                  {addDupWarning.voterId && (
+                    <p className="mt-1 text-[10px] font-bold text-rose-600 flex items-center gap-1 animate-in fade-in">
+                      <AlertCircle className="w-3 h-3 shrink-0" />
+                      <span>{addDupWarning.voterId}</span>
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -667,6 +798,55 @@ const FamilyDetails = () => {
                 </div>
               </div>
 
+              {/* Row 6: Residence Status (IN / OUT) */}
+              <div className="pt-2 border-t border-slate-100 space-y-2">
+                <label className="block font-bold text-slate-700 text-xs">
+                  Residence Status / குடியிருப்பு நிலை
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setNewMember({ ...newMember, residenceStatus: 'in', foreignCountry: '' })}
+                    className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1.5 ${
+                      newMember.residenceStatus === 'in' || !newMember.residenceStatus
+                        ? 'bg-emerald-50 border-emerald-500 text-emerald-800 shadow-xs'
+                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className={`w-2 h-2 rounded-full ${newMember.residenceStatus === 'in' || !newMember.residenceStatus ? 'bg-emerald-600' : 'bg-slate-300'}`} />
+                    <span>Local Resident (IN)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setNewMember({ ...newMember, residenceStatus: 'out' })}
+                    className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1.5 ${
+                      newMember.residenceStatus === 'out'
+                        ? 'bg-amber-50 border-amber-500 text-amber-900 shadow-xs'
+                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className={`w-2 h-2 rounded-full ${newMember.residenceStatus === 'out' ? 'bg-amber-500' : 'bg-slate-300'}`} />
+                    <span>Living Abroad / NRI (OUT)</span>
+                  </button>
+                </div>
+
+                {newMember.residenceStatus === 'out' && (
+                  <div className="pt-1 animate-in fade-in slide-in-from-top-1 duration-150">
+                    <label className="block font-bold text-amber-800 text-xs mb-1">
+                      Foreign Country / City (வெளிநாட்டு பெயர்) *
+                    </label>
+                    <input
+                      type="text"
+                      value={newMember.foreignCountry || ''}
+                      onChange={(e) => setNewMember({ ...newMember, foreignCountry: e.target.value })}
+                      placeholder="e.g. Dubai, UAE / Singapore / London, UK / USA"
+                      className="w-full px-3 py-2 bg-amber-50/50 border border-amber-300 rounded-xl focus:outline-hidden focus:border-amber-500 font-bold text-amber-950"
+                    />
+                  </div>
+                )}
+              </div>
+
               <div className="pt-3 flex items-center justify-end gap-2">
                 <button
                   type="button"
@@ -735,10 +915,24 @@ const FamilyDetails = () => {
                   <input
                     type="text"
                     value={editingMember.serialNo}
-                    onChange={(e) => setEditingMember({ ...editingMember, serialNo: e.target.value })}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setEditingMember({ ...editingMember, serialNo: val });
+                      checkMemberDuplicate('serialNo', val, true, editingMember._id);
+                    }}
                     placeholder="e.g. 45"
-                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl focus:outline-hidden focus:border-emerald-500 font-medium"
+                    className={`w-full px-3 py-2 bg-white border rounded-xl focus:outline-hidden font-medium ${
+                      editDupWarning.serialNo
+                        ? 'border-rose-400 bg-rose-50/40 text-rose-900 focus:border-rose-500'
+                        : 'border-slate-200 focus:border-emerald-500'
+                    }`}
                   />
+                  {editDupWarning.serialNo && (
+                    <p className="mt-1 text-[10px] font-bold text-rose-600 flex items-center gap-1 animate-in fade-in">
+                      <AlertCircle className="w-3 h-3 shrink-0" />
+                      <span>{editDupWarning.serialNo}</span>
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -762,10 +956,24 @@ const FamilyDetails = () => {
                   <input
                     type="text"
                     value={editingMember.voterId}
-                    onChange={(e) => setEditingMember({ ...editingMember, voterId: e.target.value.toUpperCase() })}
+                    onChange={(e) => {
+                      const val = e.target.value.toUpperCase();
+                      setEditingMember({ ...editingMember, voterId: val });
+                      checkMemberDuplicate('voterId', val, true, editingMember._id);
+                    }}
                     placeholder="e.g. TN/01/001/000123"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:border-emerald-500 font-mono font-bold"
+                    className={`w-full px-3 py-2 bg-slate-50 border rounded-xl focus:outline-hidden font-mono font-bold uppercase ${
+                      editDupWarning.voterId
+                        ? 'border-rose-400 bg-rose-50/40 text-rose-900 focus:border-rose-500'
+                        : 'border-slate-200 focus:border-emerald-500'
+                    }`}
                   />
+                  {editDupWarning.voterId && (
+                    <p className="mt-1 text-[10px] font-bold text-rose-600 flex items-center gap-1 animate-in fade-in">
+                      <AlertCircle className="w-3 h-3 shrink-0" />
+                      <span>{editDupWarning.voterId}</span>
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -911,6 +1119,55 @@ const FamilyDetails = () => {
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:border-emerald-500 font-medium"
                   />
                 </div>
+              </div>
+
+              {/* Row 6: Residence Status (IN / OUT) */}
+              <div className="pt-2 border-t border-slate-100 space-y-2">
+                <label className="block font-bold text-slate-700 text-xs">
+                  Residence Status / குடியிருப்பு நிலை
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingMember({ ...editingMember, residenceStatus: 'in', foreignCountry: '' })}
+                    className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1.5 ${
+                      editingMember.residenceStatus === 'in' || !editingMember.residenceStatus
+                        ? 'bg-emerald-50 border-emerald-500 text-emerald-800 shadow-xs'
+                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className={`w-2 h-2 rounded-full ${editingMember.residenceStatus === 'in' || !editingMember.residenceStatus ? 'bg-emerald-600' : 'bg-slate-300'}`} />
+                    <span>Local Resident (IN)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setEditingMember({ ...editingMember, residenceStatus: 'out' })}
+                    className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1.5 ${
+                      editingMember.residenceStatus === 'out'
+                        ? 'bg-amber-50 border-amber-500 text-amber-900 shadow-xs'
+                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className={`w-2 h-2 rounded-full ${editingMember.residenceStatus === 'out' ? 'bg-amber-500' : 'bg-slate-300'}`} />
+                    <span>Living Abroad / NRI (OUT)</span>
+                  </button>
+                </div>
+
+                {editingMember.residenceStatus === 'out' && (
+                  <div className="pt-1 animate-in fade-in slide-in-from-top-1 duration-150">
+                    <label className="block font-bold text-amber-800 text-xs mb-1">
+                      Foreign Country / City (வெளிநாட்டு பெயர்) *
+                    </label>
+                    <input
+                      type="text"
+                      value={editingMember.foreignCountry || ''}
+                      onChange={(e) => setEditingMember({ ...editingMember, foreignCountry: e.target.value })}
+                      placeholder="e.g. Dubai, UAE / Singapore / London, UK / USA"
+                      className="w-full px-3 py-2 bg-amber-50/50 border border-amber-300 rounded-xl focus:outline-hidden focus:border-amber-500 font-bold text-amber-950"
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="pt-3 flex items-center justify-end gap-2">

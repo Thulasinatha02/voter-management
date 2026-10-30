@@ -18,7 +18,7 @@ import UsersPage from './pages/UsersPage';
 import SettingsPage from './pages/SettingsPage';
 
 // Protected Route Guard
-const ProtectedRoute = ({ children, allowedRoles }) => {
+const ProtectedRoute = ({ children, allowedRoles, requiredPermission }) => {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -33,6 +33,22 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
     return <Navigate to="/login" replace />;
   }
 
+  // Superadmin always has full access
+  if (user.role === 'superadmin') {
+    return children;
+  }
+
+  // If a granular permission is required:
+  // If the user has that permission enabled, allow access immediately!
+  if (requiredPermission) {
+    if (user.permissions && user.permissions[requiredPermission] === true) {
+      return children;
+    }
+    // If user lacks the granular permission, redirect to dashboard
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  // Fallback to role-based check if no specific permission required
   if (allowedRoles && !allowedRoles.includes(user.role)) {
     return <Navigate to="/dashboard" replace />;
   }
@@ -58,17 +74,66 @@ function App() {
             >
               <Route index element={<Navigate to="/dashboard" replace />} />
               <Route path="dashboard" element={<Dashboard />} />
-              <Route path="wards" element={<Wards />} />
-              <Route path="families" element={<Families />} />
-              <Route path="families/new" element={<FamilyForm />} />
-              <Route path="families/:id" element={<FamilyDetails />} />
-              <Route path="members" element={<Members />} />
-              <Route path="parties" element={<Parties />} />
-              <Route path="reports" element={<Reports />} />
+              <Route
+                path="wards"
+                element={
+                  <ProtectedRoute requiredPermission="wardManagement" allowedRoles={['superadmin', 'ward_officer', 'auditor']}>
+                    <Wards />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="families"
+                element={
+                  <ProtectedRoute requiredPermission="familyManagement">
+                    <Families />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="families/new"
+                element={
+                  <ProtectedRoute requiredPermission="familyManagement">
+                    <FamilyForm />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="families/:id"
+                element={
+                  <ProtectedRoute requiredPermission="familyManagement">
+                    <FamilyDetails />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="members"
+                element={
+                  <ProtectedRoute requiredPermission="memberManagement">
+                    <Members />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="parties"
+                element={
+                  <ProtectedRoute requiredPermission="partyManagement">
+                    <Parties />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="reports"
+                element={
+                  <ProtectedRoute requiredPermission="wardReports" allowedRoles={['superadmin', 'ward_officer', 'auditor']}>
+                    <Reports />
+                  </ProtectedRoute>
+                }
+              />
               <Route
                 path="users"
                 element={
-                  <ProtectedRoute allowedRoles={['superadmin']}>
+                  <ProtectedRoute requiredPermission="userManagement" allowedRoles={['superadmin']}>
                     <UsersPage />
                   </ProtectedRoute>
                 }
@@ -76,7 +141,7 @@ function App() {
               <Route
                 path="audit-logs"
                 element={
-                  <ProtectedRoute allowedRoles={['superadmin', 'auditor']}>
+                  <ProtectedRoute requiredPermission="auditLogs" allowedRoles={['superadmin', 'auditor']}>
                     <AuditLogs />
                   </ProtectedRoute>
                 }

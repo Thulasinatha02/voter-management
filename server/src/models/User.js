@@ -39,9 +39,34 @@ const userSchema = new mongoose.Schema(
         ref: 'Ward',
       },
     ],
+    // Granular Module Permission Flags
+    permissions: {
+      dashboard: { type: Boolean, default: true },
+      familyManagement: { type: Boolean, default: true },
+      memberManagement: { type: Boolean, default: true },
+      wardManagement: { type: Boolean, default: false },
+      partyManagement: { type: Boolean, default: false },
+      wardReports: { type: Boolean, default: false },
+      userManagement: { type: Boolean, default: false },
+      auditLogs: { type: Boolean, default: false },
+    },
     isActive: {
       type: Boolean,
       default: true,
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    deletedAt: {
+      type: Date,
+      default: null,
+    },
+    deletedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
     },
     lastLogin: {
       type: Date,

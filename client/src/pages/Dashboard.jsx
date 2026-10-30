@@ -18,18 +18,20 @@ import ThemeStatCard from '../components/common/ThemeStatCard';
 import ThemeButton from '../components/common/ThemeButton';
 
 const Dashboard = () => {
-  const { selectedWard } = useAuth();
+  const { selectedWard, wards, changeWard } = useAuth();
   const { t } = useLanguage();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  const isAllWards = !selectedWard || selectedWard._id === 'ALL';
+
   const fetchSummary = async () => {
-    if (!selectedWard) return;
     setLoading(true);
     setError('');
     try {
-      const res = await api.get(`/dashboard/summary?wardId=${selectedWard._id}`);
+      const wardParam = selectedWard?._id || 'ALL';
+      const res = await api.get(`/dashboard/summary?wardId=${wardParam}`);
       if (res.data.success) {
         setData(res.data.data);
       }
@@ -43,7 +45,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchSummary();
-  }, [selectedWard]);
+  }, [selectedWard?._id]);
 
   if (loading && !data) {
     return (
@@ -73,19 +75,22 @@ const Dashboard = () => {
         
         <div>
           <div className="flex items-center gap-2">
-            <span className="px-3 py-1 rounded-full text-xs font-bold bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-800 border border-emerald-200 shadow-xs">
-              {selectedWard?.wardCode || 'NO WARD SELECTED'}
+            <span className="px-3 py-1 rounded-full text-xs font-bold bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-800 border border-emerald-200 shadow-xs flex items-center gap-1.5">
+              {isAllWards ? '🌐 CONSOLIDATED' : selectedWard?.wardCode}
             </span>
             <span className="text-xs text-slate-300">•</span>
             <span className="text-xs text-slate-500 font-semibold">
-              {selectedWard?.zone || 'Metro Central'}
+              {isAllWards ? 'Entire Constituency Analysis' : (selectedWard?.zone || 'Metro Central')}
             </span>
           </div>
           <h1 className="text-xl sm:text-3xl font-extrabold text-slate-900 mt-2 tracking-tight">
-            {selectedWard?.wardName || t('dashboard.overview')}
+            {isAllWards ? 'All Wards Statistical Overview' : (selectedWard?.wardName || t('dashboard.overview'))}
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            {selectedWard?.locality || 'All sectors'} | Pop: {selectedWard?.totalPopulationEstimate?.toLocaleString() || 'N/A'}
+            {isAllWards 
+              ? `Aggregated analytics across all ${data?.wardBreakdown?.length || wards.length} administrative wards` 
+              : `${selectedWard?.locality || 'All sectors'} | Pop: ${selectedWard?.totalPopulationEstimate?.toLocaleString() || 'N/A'}`
+            }
           </p>
         </div>
 
@@ -156,6 +161,96 @@ const Dashboard = () => {
           footerValue={t('common.incomplete')}
         />
       </div>
+
+      {/* Ward Comparison & Performance Breakdown Card (Visible in All Wards Mode) */}
+      {isAllWards && data?.wardBreakdown && data.wardBreakdown.length > 0 && (
+        <div className="bg-white rounded-3xl border border-slate-200/80 p-5 sm:p-7 shadow-xs relative overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-green-500" />
+          
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                <h2 className="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight">
+                  Constituency Ward Comparison & Enumeration Progress
+                </h2>
+              </div>
+              <p className="text-xs text-slate-500 mt-1">
+                Comparative analysis of households, population enumeration, and verification completion across all wards.
+              </p>
+            </div>
+            <Link
+              to="/wards"
+              className="text-xs font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100/80 px-3 py-1.5 rounded-xl border border-emerald-200/60 transition-colors self-start sm:self-auto"
+            >
+              Manage Wards →
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {data.wardBreakdown.map((w) => {
+              const pctOfAllFamilies = totals.families ? Math.round((w.familyCount / totals.families) * 100) : 0;
+              return (
+                <div
+                  key={w._id}
+                  onClick={() => {
+                    const match = wards.find((item) => item._id === w._id);
+                    if (match) changeWard(match);
+                  }}
+                  className="group p-4 rounded-2xl border border-slate-100 hover:border-emerald-300 bg-slate-50/50 hover:bg-emerald-50/20 transition-all cursor-pointer relative flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-mono text-xs font-black text-emerald-800 bg-emerald-100/70 border border-emerald-200 px-2 py-0.5 rounded-lg group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                        {w.wardCode}
+                      </span>
+                      <span className="text-[10px] font-bold text-slate-400">
+                        {pctOfAllFamilies}% of constituency
+                      </span>
+                    </div>
+
+                    <h3 className="text-sm font-bold text-slate-800 group-hover:text-emerald-900 transition-colors line-clamp-1">
+                      {w.wardName}
+                    </h3>
+                    <p className="text-[11px] text-slate-400 truncate mb-3">
+                      {w.locality || w.district || 'Metro Sector'}
+                    </p>
+
+                    <div className="grid grid-cols-2 gap-2 py-2 border-y border-slate-200/60 text-xs mb-3">
+                      <div>
+                        <div className="text-[10px] text-slate-400 font-medium">Families</div>
+                        <div className="text-sm font-extrabold text-slate-700">{w.familyCount?.toLocaleString()}</div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] text-slate-400 font-medium">Residents</div>
+                        <div className="text-sm font-extrabold text-slate-700">{w.memberCount?.toLocaleString()}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between items-center text-[11px] mb-1">
+                      <span className="text-slate-500 font-medium">Verification Rate</span>
+                      <span className="font-bold text-emerald-700">{w.completionRate}%</span>
+                    </div>
+                    <div className="w-full h-2 bg-slate-200/70 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full transition-all duration-500"
+                        style={{ width: `${w.completionRate}%` }}
+                      />
+                    </div>
+                    <div className="mt-2 text-right">
+                      <span className="text-[10px] font-bold text-emerald-600 group-hover:underline">
+                        Filter this ward →
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Middle Grid: Locality Breakdown & Gender Demographic Summary */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -323,15 +418,34 @@ const Dashboard = () => {
               >
                 <div className="flex items-center gap-3">
                   <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                  <div>
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <span className="font-bold text-slate-800">{act.username}</span>
-                    <span className="text-slate-500"> — </span>
+                    {act.userId?.role === 'superadmin' ? (
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase bg-purple-50 text-purple-700 border border-purple-200">
+                        Admin
+                      </span>
+                    ) : (
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase bg-teal-50 text-teal-700 border border-teal-200">
+                        Field Officer
+                      </span>
+                    )}
+                    <span className="text-slate-400"> — </span>
                     <span className="font-bold text-emerald-700">{act.action}</span>
-                    <span className="text-slate-500"> on </span>
+                    <span className="text-slate-400"> on </span>
                     <span className="font-semibold text-slate-700">{act.entityType}</span>
+                    {act.details?.wardCode && (
+                      <span className="font-mono text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.2 rounded">
+                        ({act.details.wardCode})
+                      </span>
+                    )}
+                    {act.details?.partyCode && (
+                      <span className="font-mono text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.2 rounded">
+                        ({act.details.partyCode})
+                      </span>
+                    )}
                   </div>
                 </div>
-                <div className="text-[11px] text-slate-400 font-medium">
+                <div className="text-[11px] text-slate-400 font-medium shrink-0 ml-2">
                   {new Date(act.createdAt).toLocaleTimeString()}
                 </div>
               </div>

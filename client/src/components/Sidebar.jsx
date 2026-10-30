@@ -20,20 +20,29 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
   const { t } = useLanguage();
 
   const navItems = [
-    { name: t('nav.dashboard'), path: '/dashboard', icon: LayoutDashboard, roles: ['superadmin', 'ward_officer', 'data_operator', 'auditor'] },
-    { name: t('nav.wardManagement'), path: '/wards', icon: MapPin, roles: ['superadmin', 'ward_officer', 'auditor'] },
-    { name: t('nav.familyManagement'), path: '/families', icon: Home, roles: ['superadmin', 'ward_officer', 'data_operator', 'auditor'] },
-    { name: t('nav.memberManagement'), path: '/members', icon: Users, roles: ['superadmin', 'ward_officer', 'data_operator', 'auditor'] },
-    { name: t('nav.partyManagement') || 'Party Management', path: '/parties', icon: Flag, roles: ['superadmin', 'ward_officer', 'data_operator', 'auditor'] },
-    { name: t('nav.wardReports'), path: '/reports', icon: FileBarChart, roles: ['superadmin', 'ward_officer', 'auditor'] },
-    { name: t('nav.userManagement'), path: '/users', icon: UserCheck, roles: ['superadmin'] },
-    { name: t('nav.auditLogs'), path: '/audit-logs', icon: ShieldAlert, roles: ['superadmin', 'auditor'] },
-    { name: t('nav.settings'), path: '/settings', icon: Settings, roles: ['superadmin', 'ward_officer', 'data_operator', 'auditor'] },
+    { name: t('nav.dashboard'), path: '/dashboard', icon: LayoutDashboard, permission: 'dashboard', roles: ['superadmin', 'ward_officer', 'data_operator', 'auditor'] },
+    { name: t('nav.wardManagement'), path: '/wards', icon: MapPin, permission: 'wardManagement', roles: ['superadmin', 'ward_officer', 'auditor'] },
+    { name: t('nav.familyManagement'), path: '/families', icon: Home, permission: 'familyManagement', roles: ['superadmin', 'ward_officer', 'data_operator', 'auditor'] },
+    { name: t('nav.memberManagement'), path: '/members', icon: Users, permission: 'memberManagement', roles: ['superadmin', 'ward_officer', 'data_operator', 'auditor'] },
+    { name: t('nav.partyManagement') || 'Party Management', path: '/parties', icon: Flag, permission: 'partyManagement', roles: ['superadmin', 'ward_officer', 'data_operator', 'auditor'] },
+    { name: t('nav.wardReports'), path: '/reports', icon: FileBarChart, permission: 'wardReports', roles: ['superadmin', 'ward_officer', 'auditor'] },
+    { name: t('nav.userManagement'), path: '/users', icon: UserCheck, permission: 'userManagement', roles: ['superadmin'] },
+    { name: t('nav.auditLogs'), path: '/audit-logs', icon: ShieldAlert, permission: 'auditLogs', roles: ['superadmin', 'auditor'] },
+    { name: t('nav.settings'), path: '/settings', icon: Settings, permission: null, roles: ['superadmin', 'ward_officer', 'data_operator', 'auditor'] },
   ];
 
-  const allowedItems = navItems.filter((item) =>
-    item.roles.includes(user?.role || 'data_operator')
-  );
+  const allowedItems = navItems.filter((item) => {
+    // Superadmin has access to everything
+    if (user?.role === 'superadmin') return true;
+
+    // If item requires a specific permission and user has a permissions object, check it
+    if (item.permission && user?.permissions) {
+      return Boolean(user.permissions[item.permission]);
+    }
+
+    // Fallback to role-based check
+    return item.roles.includes(user?.role || 'data_operator');
+  });
 
   return (
     <aside
@@ -41,13 +50,17 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
         isOpen ? 'translate-x-0' : '-translate-x-full'
       }`}
     >
-      {/* Brand Header with Emerald Gradient */}
-      <div className="h-16 flex items-center px-6 gap-3 border-b border-slate-800/80">
-        <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 via-emerald-500 to-teal-400 flex items-center justify-center text-white font-black shadow-lg shadow-emerald-600/30">
-          W
+      {/* Brand Header with Logo */}
+      <div className="h-16 flex items-center px-5 gap-3 border-b border-slate-800/80">
+        <div className="w-10 h-10 rounded-xl bg-white/10 p-1 flex items-center justify-center border border-white/10 shadow-md shrink-0 overflow-hidden">
+          <img
+            src="/admk logo.png"
+            alt="Portal Logo"
+            className="w-full h-full object-contain drop-shadow-xs"
+          />
         </div>
-        <div>
-          <h1 className="font-extrabold text-white text-sm tracking-wider">{t('common.portalTitle')}</h1>
+        <div className="min-w-0">
+          <h1 className="font-extrabold text-white text-sm tracking-wider truncate">{t('common.portalTitle')}</h1>
           <p className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
             {t('common.registrySubtitle')}

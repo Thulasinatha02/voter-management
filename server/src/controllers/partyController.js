@@ -27,7 +27,9 @@ const getParties = async (req, res, next) => {
       query.isActive = true;
     }
 
-    const parties = await Party.find(query).sort({ partyName: 1 });
+    const parties = await Party.find(query)
+      .populate('createdBy', 'username fullName role')
+      .sort({ partyName: 1 });
     res.json({ success: true, count: parties.length, data: parties });
   } catch (error) {
     next(error);
@@ -38,7 +40,7 @@ const getParties = async (req, res, next) => {
 // @route GET /api/parties/:id
 const getPartyById = async (req, res, next) => {
   try {
-    const party = await Party.findById(req.params.id);
+    const party = await Party.findById(req.params.id).populate('createdBy', 'username fullName role');
     if (!party) {
       return res.status(404).json({ success: false, message: 'Party not found' });
     }
@@ -83,7 +85,9 @@ const createParty = async (req, res, next) => {
       details: { partyCode: party.partyCode, partyName: party.partyName },
     });
 
-    res.status(201).json({ success: true, data: party });
+    const populatedParty = await Party.findById(party._id).populate('createdBy', 'username fullName role');
+
+    res.status(201).json({ success: true, data: populatedParty });
   } catch (error) {
     next(error);
   }

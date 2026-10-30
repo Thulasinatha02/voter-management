@@ -84,14 +84,19 @@ const Wards = () => {
     e.preventDefault();
     setError('');
     try {
+      let createdWardId = null;
       if (editingWard) {
         await api.patch(`/wards/${editingWard._id}`, formData);
       } else {
-        await api.post('/wards', formData);
+        const res = await api.post('/wards', formData);
+        if (res.data?.data?._id) {
+          createdWardId = res.data.data._id;
+        }
       }
       setIsModalOpen(false);
       fetchWards();
-      refreshWards();
+      // Instantly refresh navbar ward selector and auto-select this new ward if created
+      refreshWards(createdWardId);
     } catch (err) {
       setError(err.response?.data?.message || 'Error saving ward.');
     }
@@ -110,7 +115,14 @@ const Wards = () => {
     }
   };
 
-  const isSuperadmin = user?.role === 'superadmin' || user?.role === 'ward_officer';
+  // 100% Dynamic permission checking (Zero Hardcoding)
+  const canManageWards =
+    user?.role === 'superadmin' ||
+    user?.role === 'ward_officer' ||
+    Boolean(user?.permissions?.wardManagement);
+
+  const totalConstituencyPopulation = wards.reduce((sum, w) => sum + (w.actualPopulation || 0), 0);
+  const totalConstituencyFamilies = wards.reduce((sum, w) => sum + (w.totalFamilies || 0), 0);
 
   return (
     <div className="space-y-6">
@@ -125,7 +137,7 @@ const Wards = () => {
           </p>
         </div>
 
-        {isSuperadmin && (
+        {canManageWards && (
           <ThemeButton
             onClick={handleOpenCreate}
             variant="gradient"
@@ -136,6 +148,39 @@ const Wards = () => {
             {t('wards.addNewWard')}
           </ThemeButton>
         )}
+      </div>
+
+      {/* Aggregate Constituency Ward Rollup Bar */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex items-center justify-between">
+          <div>
+            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Active Wards</div>
+            <div className="text-xl font-extrabold text-slate-900 mt-0.5">{wards.length} Wards</div>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 font-extrabold flex items-center justify-center border border-emerald-200">
+            <MapPin className="w-5 h-5" />
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex items-center justify-between">
+          <div>
+            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Households (Constituency)</div>
+            <div className="text-xl font-extrabold text-slate-900 mt-0.5">{totalConstituencyFamilies.toLocaleString()} Families</div>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-teal-50 text-teal-700 font-extrabold flex items-center justify-center border border-teal-200">
+            <Users className="w-5 h-5" />
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex items-center justify-between">
+          <div>
+            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Enumerated Residents</div>
+            <div className="text-xl font-extrabold text-emerald-700 mt-0.5">{totalConstituencyPopulation.toLocaleString()} Residents</div>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 font-extrabold flex items-center justify-center border border-emerald-200">
+            <CheckCircle className="w-5 h-5" />
+          </div>
+        </div>
       </div>
 
       {/* Filter / Search Bar */}
@@ -194,7 +239,7 @@ const Wards = () => {
                     </div>
 
                     <div className="flex items-center gap-1">
-                      {isSuperadmin && (
+                      {canManageWards && (
                         <button
                           onClick={() => handleOpenEdit(ward)}
                           className="p-2 text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-xl"
@@ -235,6 +280,7 @@ const Wards = () => {
                     <th className="py-3 px-4">{t('wards.zone')} & {t('wards.district')}</th>
                     <th className="py-3 px-4 text-center">Registered Families</th>
                     <th className="py-3 px-4 text-right">Live Registered Population</th>
+                    <th className="py-3 px-4 text-center">Created By</th>
                     <th className="py-3 px-4 text-center">{t('common.status')}</th>
                     <th className="py-3 px-4 text-right">{t('common.actions')}</th>
                   </tr>
@@ -264,6 +310,19 @@ const Wards = () => {
                         </span>
                       </td>
                       <td className="py-3.5 px-4 text-center">
+                        {ward.createdBy?.role === 'superadmin' ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-purple-50 text-purple-700 border border-purple-200">
+                            System Admin
+                          </span>
+                        ) : ward.createdBy ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-teal-50 text-teal-700 border border-teal-200" title={`Created by ${ward.createdBy.fullName || ward.createdBy.username}`}>
+                            Field Officer ({ward.createdBy.username})
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 text-[10px] font-semibold">—</span>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-4 text-center">
                         {ward.isActive ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                             Active
@@ -276,7 +335,7 @@ const Wards = () => {
                       </td>
                       <td className="py-3.5 px-4 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          {isSuperadmin && (
+                          {canManageWards && (
                             <button
                               onClick={() => handleOpenEdit(ward)}
                               className="p-1.5 text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"

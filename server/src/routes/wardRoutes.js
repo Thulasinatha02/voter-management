@@ -7,14 +7,14 @@ const {
   updateWard,
   toggleArchiveWard,
 } = require('../controllers/wardController');
-const { protect, authorize } = require('../middleware/auth');
+const { protect, authorize, checkPermission } = require('../middleware/auth');
 
 router.use(protect);
 
 router.get('/', getWards);
 router.get('/:id', getWardById);
-router.post('/', authorize('superadmin', 'ward_officer'), createWard);
-router.patch('/:id', authorize('superadmin', 'ward_officer'), updateWard);
+router.post('/', checkPermission('wardManagement'), createWard);
+router.patch('/:id', checkPermission('wardManagement'), updateWard);
 router.patch('/:id/archive', authorize('superadmin'), toggleArchiveWard);
 
 module.exports = router;
