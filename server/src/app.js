@@ -16,10 +16,11 @@ const app = express();
 // Security and utility middlewares
 app.use(helmet());
 
-// Global API Rate Limiter: max 300 requests per 15 minutes per IP
+// Global API Rate Limiter: skip /api/health and allow generous threshold in development
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 300,
+  max: process.env.NODE_ENV === 'production' ? 300 : 2000,
+  skip: (req) => req.path === '/health',
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -29,10 +30,10 @@ const globalLimiter = rateLimit({
 });
 app.use('/api', globalLimiter);
 
-// Dedicated strict brute-force protection for authentication endpoints: max 10 requests per 15 min
+// Dedicated strict brute-force protection for authentication endpoints
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: process.env.NODE_ENV === 'production' ? 20 : 100,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
