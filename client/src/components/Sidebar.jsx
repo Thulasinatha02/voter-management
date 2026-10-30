@@ -50,13 +50,17 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
         isOpen ? 'translate-x-0' : '-translate-x-full'
       }`}
     >
-      {/* Brand Header with Emerald Gradient */}
-      <div className="h-16 flex items-center px-6 gap-3 border-b border-slate-800/80">
-        <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 via-emerald-500 to-teal-400 flex items-center justify-center text-white font-black shadow-lg shadow-emerald-600/30">
-          W
+      {/* Brand Header with Logo */}
+      <div className="h-16 flex items-center px-5 gap-3 border-b border-slate-800/80">
+        <div className="w-10 h-10 rounded-xl bg-white/10 p-1 flex items-center justify-center border border-white/10 shadow-md shrink-0 overflow-hidden">
+          <img
+            src="/admk logo.png"
+            alt="Portal Logo"
+            className="w-full h-full object-contain drop-shadow-xs"
+          />
         </div>
-        <div>
-          <h1 className="font-extrabold text-white text-sm tracking-wider">{t('common.portalTitle')}</h1>
+        <div className="min-w-0">
+          <h1 className="font-extrabold text-white text-sm tracking-wider truncate">{t('common.portalTitle')}</h1>
           <p className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
             {t('common.registrySubtitle')}

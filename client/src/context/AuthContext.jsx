@@ -3,6 +3,13 @@ import api from '../services/api';
 
 const AuthContext = createContext(null);
 
+export const ALL_WARDS_OPTION = {
+  _id: 'ALL',
+  wardCode: 'ALL',
+  wardName: 'All Wards (Consolidated)',
+  locality: 'Entire Constituency',
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
     const saved = localStorage.getItem('ward_auth_user');
@@ -13,7 +20,14 @@ export const AuthProvider = ({ children }) => {
   // Active selected Ward for the entire session / dashboard
   const [selectedWard, setSelectedWard] = useState(() => {
     const saved = localStorage.getItem('ward_selected_ward');
-    return saved ? JSON.parse(saved) : null;
+    if (!saved) return ALL_WARDS_OPTION;
+    try {
+      const parsed = JSON.parse(saved);
+      if (parsed?._id === 'ALL') return ALL_WARDS_OPTION;
+      return parsed;
+    } catch {
+      return ALL_WARDS_OPTION;
+    }
   });
 
   const [wards, setWards] = useState([]);
@@ -39,20 +53,13 @@ export const AuthProvider = ({ children }) => {
 
   // Fetch authorized wards once logged in
   useEffect(() => {
-    if (user) {
+    if (user?._id) {
       fetchWards();
     }
-  }, [user]);
+  }, [user?._id]);
 
   const fetchWards = async (newWardIdToSelect = null) => {
     try {
-      // Also refresh user data so user.assignedWards is in sync
-      const userRes = await api.get('/auth/me');
-      if (userRes.data.success) {
-        setUser(userRes.data.data);
-        localStorage.setItem('ward_auth_user', JSON.stringify(userRes.data.data));
-      }
-
       const res = await api.get('/wards');
       if (res.data.success && res.data.data.length > 0) {
         setWards(res.data.data);
@@ -67,12 +74,15 @@ export const AuthProvider = ({ children }) => {
           }
         }
 
-        // Default select first ward if none selected or if selected is not in allowed list
+        // Preserve ALL if already chosen
         setSelectedWard((prev) => {
+          if (prev?._id === 'ALL') {
+            return ALL_WARDS_OPTION;
+          }
           if (!prev || !res.data.data.some((w) => w._id === prev._id)) {
-            const defaultWard = res.data.data[0];
-            localStorage.setItem('ward_selected_ward', JSON.stringify(defaultWard));
-            return defaultWard;
+            // Default to ALL_WARDS_OPTION for holistic analytics
+            localStorage.setItem('ward_selected_ward', JSON.stringify(ALL_WARDS_OPTION));
+            return ALL_WARDS_OPTION;
           }
           return prev;
         });
@@ -107,6 +117,18 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('ward_selected_ward', JSON.stringify(ward));
   };
 
+  const refreshUser = async () => {
+    try {
+      const userRes = await api.get('/auth/me');
+      if (userRes.data.success) {
+        setUser(userRes.data.data);
+        localStorage.setItem('ward_auth_user', JSON.stringify(userRes.data.data));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -118,6 +140,7 @@ export const AuthProvider = ({ children }) => {
         selectedWard,
         changeWard,
         refreshWards: fetchWards,
+        refreshUser,
       }}
     >
       {children}

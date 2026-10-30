@@ -121,6 +121,9 @@ const Wards = () => {
     user?.role === 'ward_officer' ||
     Boolean(user?.permissions?.wardManagement);
 
+  const totalConstituencyPopulation = wards.reduce((sum, w) => sum + (w.actualPopulation || 0), 0);
+  const totalConstituencyFamilies = wards.reduce((sum, w) => sum + (w.totalFamilies || 0), 0);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -145,6 +148,39 @@ const Wards = () => {
             {t('wards.addNewWard')}
           </ThemeButton>
         )}
+      </div>
+
+      {/* Aggregate Constituency Ward Rollup Bar */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex items-center justify-between">
+          <div>
+            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Active Wards</div>
+            <div className="text-xl font-extrabold text-slate-900 mt-0.5">{wards.length} Wards</div>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 font-extrabold flex items-center justify-center border border-emerald-200">
+            <MapPin className="w-5 h-5" />
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex items-center justify-between">
+          <div>
+            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Households (Constituency)</div>
+            <div className="text-xl font-extrabold text-slate-900 mt-0.5">{totalConstituencyFamilies.toLocaleString()} Families</div>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-teal-50 text-teal-700 font-extrabold flex items-center justify-center border border-teal-200">
+            <Users className="w-5 h-5" />
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex items-center justify-between">
+          <div>
+            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Enumerated Residents</div>
+            <div className="text-xl font-extrabold text-emerald-700 mt-0.5">{totalConstituencyPopulation.toLocaleString()} Residents</div>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 font-extrabold flex items-center justify-center border border-emerald-200">
+            <CheckCircle className="w-5 h-5" />
+          </div>
+        </div>
       </div>
 
       {/* Filter / Search Bar */}

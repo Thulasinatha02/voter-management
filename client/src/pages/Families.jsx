@@ -23,7 +23,7 @@ import ThemeButton from '../components/common/ThemeButton';
 import ThemeBadge from '../components/common/ThemeBadge';
 
 const Families = () => {
-  const { selectedWard } = useAuth();
+  const { selectedWard, wards, changeWard } = useAuth();
   const [searchParams] = useSearchParams();
   const [families, setFamilies] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -37,13 +37,19 @@ const Families = () => {
   const [isEditFamilyOpen, setIsEditFamilyOpen] = useState(false);
   const [editingFamily, setEditingFamily] = useState(null);
 
+  const isAllWards = !selectedWard || selectedWard._id === 'ALL';
+
+  // Reset to page 1 whenever selected ward changes
+  useEffect(() => {
+    setPage(1);
+  }, [selectedWard?._id]);
+
   const fetchFamilies = async () => {
-    if (!selectedWard) return;
     setLoading(true);
     try {
       const res = await api.get('/families', {
         params: {
-          wardId: selectedWard._id,
+          wardId: isAllWards ? undefined : selectedWard._id,
           search,
           status,
           page,
@@ -65,7 +71,7 @@ const Families = () => {
 
   useEffect(() => {
     fetchFamilies();
-  }, [selectedWard, search, status, page, showArchived]);
+  }, [selectedWard?._id, search, status, page, showArchived]);
 
   const handleOpenEdit = (fam) => {
     setEditingFamily({
@@ -120,13 +126,15 @@ const Families = () => {
         <div>
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold px-3 py-1 rounded-full bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-800 border border-emerald-200">
-              {selectedWard?.wardCode}
+              {isAllWards ? '🌐 ALL WARDS' : selectedWard?.wardCode}
             </span>
-            <span className="text-xs text-slate-400 font-medium">Scoped Household Directory</span>
+            <span className="text-xs text-slate-400 font-medium">Household Directory</span>
           </div>
           <h1 className="text-2xl font-bold text-slate-900 mt-1">Family Management</h1>
           <p className="text-xs text-slate-500">
-            Registered households and family units in {selectedWard?.wardName}
+            {isAllWards
+              ? 'Registered households and family units across all wards'
+              : `Registered households and family units in ${selectedWard?.wardName}`}
           </p>
         </div>
 
@@ -138,10 +146,10 @@ const Families = () => {
       </div>
 
       {/* Search and Filters */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+      <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full md:w-auto">
           {/* Search box */}
-          <div className="relative w-full sm:w-72">
+          <div className="relative w-full sm:w-64 md:w-72">
             <Search className="w-4 h-4 text-emerald-600 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
@@ -162,7 +170,7 @@ const Families = () => {
               setStatus(e.target.value);
               setPage(1);
             }}
-            className="text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-700 font-medium focus:outline-hidden focus:border-emerald-500"
+            className="w-full sm:w-auto text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-700 font-medium focus:outline-hidden focus:border-emerald-500"
           >
             <option value="">All Statuses</option>
             <option value="complete">Complete Records Only</option>
@@ -170,7 +178,7 @@ const Families = () => {
           </select>
         </div>
 
-        <div className="flex items-center gap-3 text-xs text-slate-500">
+        <div className="flex items-center justify-between md:justify-end gap-3 text-xs text-slate-500 pt-1 md:pt-0 border-t md:border-t-0 border-slate-100">
           <label className="flex items-center gap-2 cursor-pointer font-medium">
             <input
               type="checkbox"
@@ -195,22 +203,108 @@ const Families = () => {
             No family records found. Click "Register New Family" to create one.
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="border-b border-slate-200/70 bg-slate-50/60 text-slate-500 font-bold uppercase tracking-wider">
-                  <th className="py-3 px-4">Family Code</th>
-                  <th className="py-3 px-4">Head of Family</th>
-                  <th className="py-3 px-4">Address / House No</th>
-                  <th className="py-3 px-4">Locality</th>
-                  <th className="py-3 px-4 text-center">Members</th>
-                  <th className="py-3 px-4 text-center">Status</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
+          <>
+            {/* MOBILE CARD VIEW (< md) */}
+            <div className="md:hidden divide-y divide-slate-100">
+              {families.map((fam) => (
+                <div key={fam._id} className="p-4 space-y-2.5 hover:bg-slate-50/60 transition-colors">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {isAllWards && (
+                          <span className="font-mono text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200">
+                            {fam.wardId?.wardCode || 'WARD'}
+                          </span>
+                        )}
+                        <span className="font-mono font-bold text-xs text-emerald-700 bg-emerald-50/70 px-2 py-0.5 rounded-md border border-emerald-200">
+                          {fam.familyCode}
+                        </span>
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-extrabold text-[11px]">
+                          <Users className="w-3 h-3 text-emerald-600" />
+                          {fam.memberCount || 0} members
+                        </span>
+                      </div>
+                      <h3 className="font-bold text-slate-900 text-sm mt-1.5">{fam.headOfFamilyName}</h3>
+                      {fam.familyLabel && (
+                        <p className="text-[11px] text-slate-400">{fam.familyLabel}</p>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleOpenEdit(fam)}
+                        className="p-1.5 text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
+                        title="Edit"
+                      >
+                        <Edit2 className="w-4 h-4 text-emerald-600" />
+                      </button>
+                      <Link
+                        to={`/families/${fam._id}`}
+                        className="p-1.5 text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
+                        title="View Details"
+                      >
+                        <Eye className="w-4 h-4 text-teal-600" />
+                      </Link>
+                      <button
+                        onClick={() => handleToggleArchive(fam)}
+                        className={`p-1.5 rounded-lg transition-colors ${
+                          fam.isArchived ? 'text-emerald-600 hover:bg-emerald-50' : 'text-slate-400 hover:text-rose-600 hover:bg-rose-50'
+                        }`}
+                        title={fam.isArchived ? 'Restore' : 'Archive'}
+                      >
+                        {fam.isArchived ? <RotateCcw className="w-4 h-4" /> : <Archive className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between text-xs text-slate-500 pt-1 border-t border-slate-100">
+                    <div className="flex items-center gap-1">
+                      <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                      <span>House #{fam.houseNo}, {fam.locality || '—'}</span>
+                    </div>
+                    <div>
+                      {fam.status === 'complete' ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          <CheckCircle className="w-3 h-3" />
+                          Complete
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                          <AlertTriangle className="w-3 h-3" />
+                          Incomplete
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* DESKTOP TABLE VIEW (>= md) */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200/70 bg-slate-50/60 text-slate-500 font-bold uppercase tracking-wider">
+                    {isAllWards && <th className="py-3 px-3 text-center">Ward</th>}
+                    <th className="py-3 px-4">Family Code</th>
+                    <th className="py-3 px-4">Head of Family</th>
+                    <th className="py-3 px-4">Address / House No</th>
+                    <th className="py-3 px-4">Locality</th>
+                    <th className="py-3 px-4 text-center">Members</th>
+                    <th className="py-3 px-4 text-center">Status</th>
+                    <th className="py-3 px-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
                 {families.map((fam) => (
                   <tr key={fam._id} className="hover:bg-emerald-50/30 transition-colors">
+                    {isAllWards && (
+                      <td className="py-3.5 px-3 text-center">
+                        <span className="font-mono text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200">
+                          {fam.wardId?.wardCode || 'WARD'}
+                        </span>
+                      </td>
+                    )}
                     <td className="py-3.5 px-4 font-mono font-extrabold text-emerald-700">
                       {fam.familyCode}
                     </td>
@@ -283,7 +377,8 @@ const Families = () => {
               </tbody>
             </table>
           </div>
-        )}
+        </>
+      )}
 
         {/* Pagination */}
         {pages > 1 && (

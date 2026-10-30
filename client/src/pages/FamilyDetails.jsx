@@ -46,6 +46,82 @@ const FamilyDetails = () => {
     contactPhone: '',
     status: 'complete',
   });
+  const [addDupWarning, setAddDupWarning] = useState({ voterId: '', serialNo: '' });
+  const [editDupWarning, setEditDupWarning] = useState({ voterId: '', serialNo: '' });
+
+  const checkMemberDuplicate = async (field, value, isEditing = false, excludeId = null) => {
+    const val = (value || '').trim();
+    const setFn = isEditing ? setEditDupWarning : setAddDupWarning;
+
+    if (!val) {
+      setFn((prev) => ({ ...prev, [field]: '' }));
+      return;
+    }
+
+    // Check against members currently loaded in this family
+    if (field === 'voterId') {
+      const upperVal = val.toUpperCase();
+      const localDup = members.find(
+        (m) => (!excludeId || m._id !== excludeId) && (m.voterId || '').trim().toUpperCase() === upperVal
+      );
+      if (localDup) {
+        setFn((prev) => ({
+          ...prev,
+          voterId: `Duplicate Voter ID: Already registered to ${localDup.fullName} in this household`,
+        }));
+        return;
+      }
+    }
+
+    if (field === 'serialNo') {
+      const localDup = members.find(
+        (m) => (!excludeId || m._id !== excludeId) && (m.serialNo || '').trim() === val
+      );
+      if (localDup) {
+        setFn((prev) => ({
+          ...prev,
+          serialNo: `Serial No "${val}" already used by ${localDup.fullName} in this household`,
+        }));
+        return;
+      }
+    }
+
+    // Query backend for database-wide check
+    try {
+      const targetWardId = family?.wardId?._id || family?.wardId;
+      const params = {};
+      if (excludeId) params.excludeMemberId = excludeId;
+      if (field === 'voterId') params.voterId = val;
+      if (field === 'serialNo') {
+        params.serialNo = val;
+        params.wardId = targetWardId;
+      }
+
+      const res = await api.get('/members/check-duplicate', { params });
+      if (res.data.success) {
+        const { voterIdDuplicate, serialNoDuplicate } = res.data.data;
+        if (field === 'voterId' && voterIdDuplicate) {
+          setFn((prev) => ({
+            ...prev,
+            voterId: `Duplicate Voter ID found: Already registered to ${voterIdDuplicate.fullName} (${voterIdDuplicate.wardCode || 'Ward'})`,
+          }));
+          return;
+        }
+        if (field === 'serialNo' && serialNoDuplicate) {
+          setFn((prev) => ({
+            ...prev,
+            serialNo: `Serial No "${val}" already assigned to ${serialNoDuplicate.fullName} in this ward`,
+          }));
+          return;
+        }
+
+        setFn((prev) => ({ ...prev, [field]: '' }));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const [newMember, setNewMember] = useState({
     boothNo: 'Booth 01',
     serialNo: '',
@@ -532,20 +608,48 @@ const FamilyDetails = () => {
                     type="text"
                     inputMode="numeric"
                     value={newMember.serialNo}
-                    onChange={(e) => setNewMember({ ...newMember, serialNo: e.target.value })}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setNewMember({ ...newMember, serialNo: val });
+                      checkMemberDuplicate('serialNo', val, false);
+                    }}
                     placeholder="e.g. 104"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:border-emerald-500 font-bold"
+                    className={`w-full px-3 py-2 bg-slate-50 border rounded-xl focus:outline-hidden font-bold ${
+                      addDupWarning.serialNo
+                        ? 'border-rose-400 bg-rose-50/40 text-rose-900 focus:border-rose-500'
+                        : 'border-slate-200 focus:border-emerald-500'
+                    }`}
                   />
+                  {addDupWarning.serialNo && (
+                    <p className="mt-1 text-[10px] font-bold text-rose-600 flex items-center gap-1 animate-in fade-in">
+                      <AlertCircle className="w-3 h-3 shrink-0" />
+                      <span>{addDupWarning.serialNo}</span>
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">Voter ID (EPIC)</label>
                   <input
                     type="text"
                     value={newMember.voterId}
-                    onChange={(e) => setNewMember({ ...newMember, voterId: e.target.value.toUpperCase() })}
+                    onChange={(e) => {
+                      const val = e.target.value.toUpperCase();
+                      setNewMember({ ...newMember, voterId: val });
+                      checkMemberDuplicate('voterId', val, false);
+                    }}
                     placeholder="e.g. ABC1234567"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:border-emerald-500 font-mono font-bold uppercase text-emerald-800"
+                    className={`w-full px-3 py-2 bg-slate-50 border rounded-xl focus:outline-hidden font-mono font-bold uppercase ${
+                      addDupWarning.voterId
+                        ? 'border-rose-400 bg-rose-50/40 text-rose-900 focus:border-rose-500'
+                        : 'border-slate-200 text-emerald-800 focus:border-emerald-500'
+                    }`}
                   />
+                  {addDupWarning.voterId && (
+                    <p className="mt-1 text-[10px] font-bold text-rose-600 flex items-center gap-1 animate-in fade-in">
+                      <AlertCircle className="w-3 h-3 shrink-0" />
+                      <span>{addDupWarning.voterId}</span>
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -811,10 +915,24 @@ const FamilyDetails = () => {
                   <input
                     type="text"
                     value={editingMember.serialNo}
-                    onChange={(e) => setEditingMember({ ...editingMember, serialNo: e.target.value })}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setEditingMember({ ...editingMember, serialNo: val });
+                      checkMemberDuplicate('serialNo', val, true, editingMember._id);
+                    }}
                     placeholder="e.g. 45"
-                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl focus:outline-hidden focus:border-emerald-500 font-medium"
+                    className={`w-full px-3 py-2 bg-white border rounded-xl focus:outline-hidden font-medium ${
+                      editDupWarning.serialNo
+                        ? 'border-rose-400 bg-rose-50/40 text-rose-900 focus:border-rose-500'
+                        : 'border-slate-200 focus:border-emerald-500'
+                    }`}
                   />
+                  {editDupWarning.serialNo && (
+                    <p className="mt-1 text-[10px] font-bold text-rose-600 flex items-center gap-1 animate-in fade-in">
+                      <AlertCircle className="w-3 h-3 shrink-0" />
+                      <span>{editDupWarning.serialNo}</span>
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -838,10 +956,24 @@ const FamilyDetails = () => {
                   <input
                     type="text"
                     value={editingMember.voterId}
-                    onChange={(e) => setEditingMember({ ...editingMember, voterId: e.target.value.toUpperCase() })}
+                    onChange={(e) => {
+                      const val = e.target.value.toUpperCase();
+                      setEditingMember({ ...editingMember, voterId: val });
+                      checkMemberDuplicate('voterId', val, true, editingMember._id);
+                    }}
                     placeholder="e.g. TN/01/001/000123"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:border-emerald-500 font-mono font-bold"
+                    className={`w-full px-3 py-2 bg-slate-50 border rounded-xl focus:outline-hidden font-mono font-bold uppercase ${
+                      editDupWarning.voterId
+                        ? 'border-rose-400 bg-rose-50/40 text-rose-900 focus:border-rose-500'
+                        : 'border-slate-200 focus:border-emerald-500'
+                    }`}
                   />
+                  {editDupWarning.voterId && (
+                    <p className="mt-1 text-[10px] font-bold text-rose-600 flex items-center gap-1 animate-in fade-in">
+                      <AlertCircle className="w-3 h-3 shrink-0" />
+                      <span>{editDupWarning.voterId}</span>
+                    </p>
+                  )}
                 </div>
               </div>
 

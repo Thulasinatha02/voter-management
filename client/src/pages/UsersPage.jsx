@@ -11,6 +11,10 @@ import {
   Lock,
   MapPin,
   Check,
+  Search,
+  ChevronDown,
+  CheckSquare,
+  Square,
 } from 'lucide-react';
 import api from '../services/api';
 import ThemeButton from '../components/common/ThemeButton';
@@ -77,6 +81,8 @@ const UsersPage = () => {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  const [wardSearch, setWardSearch] = useState('');
+  const [isWardDropdownOpen, setIsWardDropdownOpen] = useState(false);
   const [error, setError] = useState('');
 
   const [formData, setFormData] = useState({
@@ -123,6 +129,8 @@ const UsersPage = () => {
       isActive: true,
     });
     setError('');
+    setWardSearch('');
+    setIsWardDropdownOpen(false);
     setIsModalOpen(true);
   };
 
@@ -141,6 +149,8 @@ const UsersPage = () => {
       isActive: user.isActive !== undefined ? user.isActive : true,
     });
     setError('');
+    setWardSearch('');
+    setIsWardDropdownOpen(false);
     setIsModalOpen(true);
   };
 
@@ -482,43 +492,180 @@ const UsersPage = () => {
                 </select>
               </div>
 
-              {/* Row 4: Assigned Ward Scoping */}
+              {/* Row 4: Assigned Ward Scoping with Searchable Multi-Select Dropdown */}
               {formData.role !== 'superadmin' && (
-                <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80 space-y-2">
+                <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80 space-y-3">
                   <div className="flex items-center justify-between">
-                    <label className="block font-bold text-slate-800">
-                      Assigned Ward Scope
-                    </label>
-                    <span className="text-[10px] text-slate-400">
+                    <div>
+                      <label className="block font-bold text-slate-800">
+                        Assigned Ward Scope
+                      </label>
+                      <p className="text-[11px] text-slate-500">
+                        Select specific wards or leave empty for full ward access
+                      </p>
+                    </div>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white border border-slate-200 text-slate-600">
                       {formData.assignedWards.length === 0
-                        ? 'Access to All Active Wards'
-                        : `${formData.assignedWards.length} ward(s) selected`}
+                        ? 'All Wards (Unrestricted)'
+                        : `${formData.assignedWards.length} selected`}
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-500">
-                    Select specific wards this operator can view and manage:
-                  </p>
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    {wards.map((w) => {
-                      const isSelected = formData.assignedWards.includes(w._id);
-                      return (
-                        <button
-                          key={w._id}
-                          type="button"
-                          onClick={() => handleToggleWard(w._id)}
-                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition-all border ${
-                            isSelected
-                              ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
-                              : 'bg-white text-slate-700 border-slate-200 hover:border-emerald-400'
-                          }`}
-                        >
-                          <MapPin className="w-3 h-3" />
-                          <span>{w.wardCode}</span>
-                          {isSelected && <Check className="w-3 h-3" />}
-                        </button>
-                      );
-                    })}
+
+                  {/* Dropdown Toggle Header Button */}
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setIsWardDropdownOpen(!isWardDropdownOpen)}
+                      className="w-full flex items-center justify-between bg-white border border-slate-200 hover:border-emerald-400 rounded-xl px-3 py-2 text-xs text-left transition-all shadow-xs"
+                    >
+                      <span className="font-medium text-slate-700 truncate">
+                        {formData.assignedWards.length === 0
+                          ? 'Select Wards from list...'
+                          : `${formData.assignedWards.length} Ward(s) Configured`}
+                      </span>
+                      <ChevronDown
+                        className={`w-4 h-4 text-slate-400 transition-transform ${
+                          isWardDropdownOpen ? 'rotate-180 text-emerald-600' : ''
+                        }`}
+                      />
+                    </button>
+
+                    {/* Expandable Dropdown Container with Search & List */}
+                    {isWardDropdownOpen && (
+                      <div className="absolute left-0 right-0 top-full mt-1.5 z-30 bg-white border border-slate-200 rounded-2xl shadow-xl p-2.5 space-y-2 animate-in fade-in zoom-in-95">
+                        {/* Search Input */}
+                        <div className="relative">
+                          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                          <input
+                            type="text"
+                            value={wardSearch}
+                            onChange={(e) => setWardSearch(e.target.value)}
+                            placeholder="Search ward code, name, locality..."
+                            className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-hidden focus:border-emerald-500 font-medium"
+                            autoFocus
+                          />
+                        </div>
+
+                        {/* Quick Selection Actions */}
+                        <div className="flex items-center justify-between text-[11px] px-1 text-slate-500 border-b border-slate-100 pb-1.5">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setFormData((prev) => ({
+                                ...prev,
+                                assignedWards: wards.map((w) => w._id),
+                              }))
+                            }
+                            className="text-emerald-700 font-bold hover:underline"
+                          >
+                            Select All ({wards.length})
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setFormData((prev) => ({
+                                ...prev,
+                                assignedWards: [],
+                              }))
+                            }
+                            className="text-slate-400 hover:text-slate-700 font-medium"
+                          >
+                            Clear Selection
+                          </button>
+                        </div>
+
+                        {/* Scrollable Ward List */}
+                        <div className="max-h-52 overflow-y-auto space-y-1 divide-y divide-slate-50 pr-1">
+                          {wards
+                            .filter((w) => {
+                              const q = wardSearch.toLowerCase().trim();
+                              if (!q) return true;
+                              return (
+                                (w.wardCode && w.wardCode.toLowerCase().includes(q)) ||
+                                (w.wardName && w.wardName.toLowerCase().includes(q)) ||
+                                (w.locality && w.locality.toLowerCase().includes(q))
+                              );
+                            })
+                            .map((w) => {
+                              const isSelected = formData.assignedWards.includes(w._id);
+                              return (
+                                <div
+                                  key={w._id}
+                                  onClick={() => handleToggleWard(w._id)}
+                                  className={`flex items-center justify-between p-2 rounded-lg cursor-pointer text-xs transition-colors ${
+                                    isSelected
+                                      ? 'bg-emerald-50/80 text-emerald-900 font-bold'
+                                      : 'hover:bg-slate-50 text-slate-700'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2 truncate">
+                                    {isSelected ? (
+                                      <CheckSquare className="w-4 h-4 text-emerald-600 shrink-0" />
+                                    ) : (
+                                      <Square className="w-4 h-4 text-slate-300 shrink-0" />
+                                    )}
+                                    <span className="font-mono text-emerald-800">{w.wardCode}</span>
+                                    <span className="truncate text-slate-600">— {w.wardName}</span>
+                                  </div>
+                                  {w.locality && (
+                                    <span className="text-[10px] text-slate-400 font-normal ml-2 shrink-0">
+                                      {w.locality}
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })}
+
+                          {wards.filter((w) => {
+                            const q = wardSearch.toLowerCase().trim();
+                            if (!q) return true;
+                            return (
+                              (w.wardCode && w.wardCode.toLowerCase().includes(q)) ||
+                              (w.wardName && w.wardName.toLowerCase().includes(q)) ||
+                              (w.locality && w.locality.toLowerCase().includes(q))
+                            );
+                          }).length === 0 && (
+                            <div className="py-4 text-center text-xs text-slate-400">
+                              No wards match "{wardSearch}"
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
+
+                  {/* Selected Wards Chips / Badges Container */}
+                  {formData.assignedWards.length > 0 && (
+                    <div className="pt-1">
+                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                        Selected Wards:
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto p-1 bg-white rounded-xl border border-slate-200/70">
+                        {formData.assignedWards.map((wId) => {
+                          const wObj = wards.find((w) => w._id === wId);
+                          return (
+                            <span
+                              key={wId}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-50 text-emerald-900 text-[11px] font-bold border border-emerald-200"
+                            >
+                              <MapPin className="w-2.5 h-2.5 text-emerald-600" />
+                              <span>{wObj ? wObj.wardCode : wId}</span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleToggleWard(wId);
+                                }}
+                                className="text-emerald-700 hover:text-rose-600 p-0.5 rounded-full hover:bg-emerald-100 transition-colors ml-0.5"
+                              >
+                                <X className="w-2.5 h-2.5" />
+                              </button>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 

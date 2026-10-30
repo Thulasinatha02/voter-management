@@ -70,7 +70,7 @@ const getFamilies = async (req, res, next) => {
 
     const query = { isArchived: isArchived === 'true' };
 
-    if (wardId) {
+    if (wardId && wardId !== 'ALL' && mongoose.Types.ObjectId.isValid(wardId)) {
       query.wardId = wardId;
     } else if (
       req.user.role !== 'superadmin' &&
@@ -170,6 +170,60 @@ const createFamily = async (req, res, next) => {
     const ward = await Ward.findById(wardId);
     if (!ward) {
       return res.status(404).json({ success: false, message: 'Referenced Ward does not exist.' });
+    }
+
+    // Pre-validate serial numbers and voter IDs among new members and against existing DB records
+    if (members.length > 0) {
+      const seenSerials = new Set();
+      const seenVoters = new Set();
+
+      for (const m of members) {
+        const s = (m.serialNo || '').trim();
+        const v = (m.voterId || '').trim().toUpperCase();
+
+        if (s) {
+          if (seenSerials.has(s)) {
+            return res.status(400).json({
+              success: false,
+              message: `Duplicate Serial Number "${s}" entered multiple times in this form.`,
+            });
+          }
+          seenSerials.add(s);
+
+          const existingSerial = await Member.findOne({
+            wardId,
+            serialNo: s,
+            isArchived: false,
+          });
+          if (existingSerial) {
+            return res.status(400).json({
+              success: false,
+              message: `Serial Number "${s}" is already assigned to ${existingSerial.fullName} in this ward.`,
+            });
+          }
+        }
+
+        if (v) {
+          if (seenVoters.has(v)) {
+            return res.status(400).json({
+              success: false,
+              message: `Duplicate Voter ID "${v}" entered multiple times in this form.`,
+            });
+          }
+          seenVoters.add(v);
+
+          const existingVoter = await Member.findOne({
+            voterId: v,
+            isArchived: false,
+          });
+          if (existingVoter) {
+            return res.status(400).json({
+              success: false,
+              message: `Voter ID "${v}" is already registered to ${existingVoter.fullName}.`,
+            });
+          }
+        }
+      }
     }
 
     const familyCode = await generateFamilyCode(ward.wardCode);

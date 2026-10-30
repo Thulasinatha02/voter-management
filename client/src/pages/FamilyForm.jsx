@@ -129,6 +129,90 @@ const FamilyForm = () => {
     setMembers(members.filter((_, i) => i !== index));
   };
 
+  const [duplicateWarnings, setDuplicateWarnings] = useState({});
+
+  const checkFieldDuplicate = async (index, field, value) => {
+    const val = (value || '').trim();
+    const key = `${index}_${field}`;
+
+    if (!val) {
+      setDuplicateWarnings((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+      return;
+    }
+
+    // 1. Check local in-form duplicates
+    if (field === 'voterId') {
+      const upperVal = val.toUpperCase();
+      const localDupIndex = members.findIndex(
+        (m, idx) => idx !== index && (m.voterId || '').trim().toUpperCase() === upperVal
+      );
+      if (localDupIndex !== -1) {
+        const otherName = members[localDupIndex].fullName || `Member #${localDupIndex + 1}`;
+        setDuplicateWarnings((prev) => ({
+          ...prev,
+          [key]: `Duplicate Voter ID: Already entered above for "${otherName}"`,
+        }));
+        return;
+      }
+    }
+
+    if (field === 'serialNo') {
+      const localDupIndex = members.findIndex(
+        (m, idx) => idx !== index && (m.serialNo || '').trim() === val
+      );
+      if (localDupIndex !== -1) {
+        const otherName = members[localDupIndex].fullName || `Member #${localDupIndex + 1}`;
+        setDuplicateWarnings((prev) => ({
+          ...prev,
+          [key]: `Duplicate Serial No: Already entered above for "${otherName}"`,
+        }));
+        return;
+      }
+    }
+
+    // 2. Query backend for database duplicates
+    try {
+      const params = {};
+      if (field === 'voterId') params.voterId = val;
+      if (field === 'serialNo') {
+        params.serialNo = val;
+        params.wardId = wardId;
+      }
+
+      const res = await api.get('/members/check-duplicate', { params });
+      if (res.data.success) {
+        const { voterIdDuplicate, serialNoDuplicate } = res.data.data;
+        if (field === 'voterId' && voterIdDuplicate) {
+          setDuplicateWarnings((prev) => ({
+            ...prev,
+            [key]: `Duplicate Voter ID found: Already registered to ${voterIdDuplicate.fullName} (${voterIdDuplicate.wardCode || 'Ward'})`,
+          }));
+          return;
+        }
+        if (field === 'serialNo' && serialNoDuplicate) {
+          setDuplicateWarnings((prev) => ({
+            ...prev,
+            [key]: `Serial No "${val}" already assigned to ${serialNoDuplicate.fullName} in this ward`,
+          }));
+          return;
+        }
+
+        // Clear warning if valid
+        setDuplicateWarnings((prev) => {
+          const next = { ...prev };
+          delete next[key];
+          return next;
+        });
+      }
+    } catch (err) {
+      console.error('Error checking duplicate:', err);
+    }
+  };
+
   const updateMemberField = (index, field, value) => {
     const updated = [...members];
     updated[index][field] = value;
@@ -136,6 +220,10 @@ const FamilyForm = () => {
       setHeadOfFamilyName(value);
     }
     setMembers(updated);
+
+    if (field === 'voterId' || field === 'serialNo') {
+      checkFieldDuplicate(index, field, value);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -441,8 +529,18 @@ const FamilyForm = () => {
                         value={member.serialNo}
                         onChange={(e) => updateMemberField(idx, 'serialNo', e.target.value)}
                         placeholder="e.g. 104"
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl focus:outline-hidden focus:border-emerald-500 font-bold"
+                        className={`w-full px-3 py-2 bg-white border rounded-xl focus:outline-hidden font-bold ${
+                          duplicateWarnings[`${idx}_serialNo`]
+                            ? 'border-rose-400 bg-rose-50/40 text-rose-900 focus:border-rose-500'
+                            : 'border-slate-200 focus:border-emerald-500'
+                        }`}
                       />
+                      {duplicateWarnings[`${idx}_serialNo`] && (
+                        <p className="mt-1 text-[10px] font-bold text-rose-600 flex items-center gap-1 animate-in fade-in">
+                          <AlertCircle className="w-3 h-3 shrink-0" />
+                          <span>{duplicateWarnings[`${idx}_serialNo`]}</span>
+                        </p>
+                      )}
                     </div>
 
                     <div className="sm:col-span-3">
@@ -454,8 +552,18 @@ const FamilyForm = () => {
                         value={member.voterId}
                         onChange={(e) => updateMemberField(idx, 'voterId', e.target.value.toUpperCase())}
                         placeholder="e.g. ABC1234567"
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl focus:outline-hidden focus:border-emerald-500 font-mono font-bold uppercase text-emerald-800"
+                        className={`w-full px-3 py-2 bg-white border rounded-xl focus:outline-hidden font-mono font-bold uppercase ${
+                          duplicateWarnings[`${idx}_voterId`]
+                            ? 'border-rose-400 bg-rose-50/40 text-rose-900 focus:border-rose-500'
+                            : 'border-slate-200 text-emerald-800 focus:border-emerald-500'
+                        }`}
                       />
+                      {duplicateWarnings[`${idx}_voterId`] && (
+                        <p className="mt-1 text-[10px] font-bold text-rose-600 flex items-center gap-1 animate-in fade-in">
+                          <AlertCircle className="w-3 h-3 shrink-0" />
+                          <span>{duplicateWarnings[`${idx}_voterId`]}</span>
+                        </p>
+                      )}
                     </div>
 
                     <div className="sm:col-span-3">

@@ -10,26 +10,46 @@ const { logAudit } = require('../services/auditService');
 const getWardReport = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const ward = await Ward.findById(id);
+    const isAll = id === 'ALL';
+    let ward = null;
 
-    if (!ward) {
-      return res.status(404).json({ success: false, message: 'Ward not found' });
+    if (!isAll) {
+      ward = await Ward.findById(id);
+      if (!ward) {
+        return res.status(404).json({ success: false, message: 'Ward not found' });
+      }
+    } else {
+      ward = {
+        _id: 'ALL',
+        wardCode: 'ALL',
+        wardName: 'All Wards (Consolidated)',
+        locality: 'Entire Constituency',
+      };
     }
 
-    const wardObjectId = new mongoose.Types.ObjectId(id);
+    const matchQuery = { isArchived: false };
+    if (!isAll && mongoose.Types.ObjectId.isValid(id)) {
+      matchQuery.wardId = new mongoose.Types.ObjectId(id);
+    } else if (
+      req.user.role !== 'superadmin' &&
+      req.user.role !== 'auditor' &&
+      req.user.assignedWards?.length
+    ) {
+      matchQuery.wardId = { $in: req.user.assignedWards.map((wId) => new mongoose.Types.ObjectId(wId)) };
+    }
 
     // Totals
-    const totalFamilies = await Family.countDocuments({ wardId: wardObjectId, isArchived: false });
-    const completeFamilies = await Family.countDocuments({ wardId: wardObjectId, status: 'complete', isArchived: false });
-    const incompleteFamilies = await Family.countDocuments({ wardId: wardObjectId, status: 'incomplete', isArchived: false });
+    const totalFamilies = await Family.countDocuments(matchQuery);
+    const completeFamilies = await Family.countDocuments({ ...matchQuery, status: 'complete' });
+    const incompleteFamilies = await Family.countDocuments({ ...matchQuery, status: 'incomplete' });
 
-    const totalMembers = await Member.countDocuments({ wardId: wardObjectId, isArchived: false });
-    const voterEligibleMembers = await Member.countDocuments({ wardId: wardObjectId, isVoterEligible: true, isArchived: false });
-    const incompleteMembers = await Member.countDocuments({ wardId: wardObjectId, status: 'incomplete', isArchived: false });
+    const totalMembers = await Member.countDocuments(matchQuery);
+    const voterEligibleMembers = await Member.countDocuments({ ...matchQuery, isVoterEligible: true });
+    const incompleteMembers = await Member.countDocuments({ ...matchQuery, status: 'incomplete' });
 
     // Localities breakdown
     const localities = await Family.aggregate([
-      { $match: { wardId: wardObjectId, isArchived: false } },
+      { $match: matchQuery },
       {
         $group: {
           _id: { $ifNull: ['$locality', 'Unspecified'] },
@@ -42,7 +62,7 @@ const getWardReport = async (req, res, next) => {
 
     // Age group breakdown
     const ageDemographics = await Member.aggregate([
-      { $match: { wardId: wardObjectId, isArchived: false, age: { $ne: null } } },
+      { $match: { ...matchQuery, age: { $ne: null } } },
       {
         $bucket: {
           groupBy: '$age',
@@ -59,8 +79,8 @@ const getWardReport = async (req, res, next) => {
       req,
       action: 'EXPORT',
       entityType: 'Report',
-      entityId: ward._id,
-      wardId: ward._id,
+      entityId: isAll ? undefined : ward._id,
+      wardId: isAll ? undefined : ward._id,
       details: { reportType: 'Ward Summary Report', wardCode: ward.wardCode },
     });
 
@@ -92,13 +112,35 @@ const getWardReport = async (req, res, next) => {
 const exportWardCsv = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const ward = await Ward.findById(id);
+    const isAll = id === 'ALL';
+    let ward = null;
 
-    if (!ward) {
-      return res.status(404).json({ success: false, message: 'Ward not found' });
+    if (!isAll) {
+      ward = await Ward.findById(id);
+      if (!ward) {
+        return res.status(404).json({ success: false, message: 'Ward not found' });
+      }
+    } else {
+      ward = {
+        _id: 'ALL',
+        wardCode: 'ALL',
+        wardName: 'All Wards (Consolidated)',
+      };
     }
 
-    const members = await Member.find({ wardId: id, isArchived: false })
+    const memberQuery = { isArchived: false };
+    if (!isAll && mongoose.Types.ObjectId.isValid(id)) {
+      memberQuery.wardId = new mongoose.Types.ObjectId(id);
+    } else if (
+      req.user.role !== 'superadmin' &&
+      req.user.role !== 'auditor' &&
+      req.user.assignedWards?.length
+    ) {
+      memberQuery.wardId = { $in: req.user.assignedWards.map((wId) => new mongoose.Types.ObjectId(wId)) };
+    }
+
+    const members = await Member.find(memberQuery)
+      .populate('wardId', 'wardCode wardName')
       .populate('familyId', 'familyCode houseNo street locality contactPhone')
       .populate('politicalParty', 'partyCode partyName')
       .sort({ boothNo: 1, serialNo: 1, memberCode: 1 });
