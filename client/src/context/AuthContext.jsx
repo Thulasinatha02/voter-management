@@ -44,11 +44,29 @@ export const AuthProvider = ({ children }) => {
     }
   }, [user]);
 
-  const fetchWards = async () => {
+  const fetchWards = async (newWardIdToSelect = null) => {
     try {
+      // Also refresh user data so user.assignedWards is in sync
+      const userRes = await api.get('/auth/me');
+      if (userRes.data.success) {
+        setUser(userRes.data.data);
+        localStorage.setItem('ward_auth_user', JSON.stringify(userRes.data.data));
+      }
+
       const res = await api.get('/wards');
       if (res.data.success && res.data.data.length > 0) {
         setWards(res.data.data);
+
+        // If a specific newly created ward was requested, select it
+        if (newWardIdToSelect) {
+          const targetNewWard = res.data.data.find((w) => w._id === newWardIdToSelect);
+          if (targetNewWard) {
+            setSelectedWard(targetNewWard);
+            localStorage.setItem('ward_selected_ward', JSON.stringify(targetNewWard));
+            return;
+          }
+        }
+
         // Default select first ward if none selected or if selected is not in allowed list
         setSelectedWard((prev) => {
           if (!prev || !res.data.data.some((w) => w._id === prev._id)) {

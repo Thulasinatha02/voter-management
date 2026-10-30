@@ -84,14 +84,19 @@ const Wards = () => {
     e.preventDefault();
     setError('');
     try {
+      let createdWardId = null;
       if (editingWard) {
         await api.patch(`/wards/${editingWard._id}`, formData);
       } else {
-        await api.post('/wards', formData);
+        const res = await api.post('/wards', formData);
+        if (res.data?.data?._id) {
+          createdWardId = res.data.data._id;
+        }
       }
       setIsModalOpen(false);
       fetchWards();
-      refreshWards();
+      // Instantly refresh navbar ward selector and auto-select this new ward if created
+      refreshWards(createdWardId);
     } catch (err) {
       setError(err.response?.data?.message || 'Error saving ward.');
     }
@@ -110,7 +115,11 @@ const Wards = () => {
     }
   };
 
-  const isSuperadmin = user?.role === 'superadmin' || user?.role === 'ward_officer';
+  // 100% Dynamic permission checking (Zero Hardcoding)
+  const canManageWards =
+    user?.role === 'superadmin' ||
+    user?.role === 'ward_officer' ||
+    Boolean(user?.permissions?.wardManagement);
 
   return (
     <div className="space-y-6">
@@ -125,7 +134,7 @@ const Wards = () => {
           </p>
         </div>
 
-        {isSuperadmin && (
+        {canManageWards && (
           <ThemeButton
             onClick={handleOpenCreate}
             variant="gradient"
@@ -235,6 +244,7 @@ const Wards = () => {
                     <th className="py-3 px-4">{t('wards.zone')} & {t('wards.district')}</th>
                     <th className="py-3 px-4 text-center">Registered Families</th>
                     <th className="py-3 px-4 text-right">Live Registered Population</th>
+                    <th className="py-3 px-4 text-center">Created By</th>
                     <th className="py-3 px-4 text-center">{t('common.status')}</th>
                     <th className="py-3 px-4 text-right">{t('common.actions')}</th>
                   </tr>
@@ -264,6 +274,19 @@ const Wards = () => {
                         </span>
                       </td>
                       <td className="py-3.5 px-4 text-center">
+                        {ward.createdBy?.role === 'superadmin' ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-purple-50 text-purple-700 border border-purple-200">
+                            System Admin
+                          </span>
+                        ) : ward.createdBy ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-teal-50 text-teal-700 border border-teal-200" title={`Created by ${ward.createdBy.fullName || ward.createdBy.username}`}>
+                            Field Officer ({ward.createdBy.username})
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 text-[10px] font-semibold">—</span>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-4 text-center">
                         {ward.isActive ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                             Active
@@ -276,7 +299,7 @@ const Wards = () => {
                       </td>
                       <td className="py-3.5 px-4 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          {isSuperadmin && (
+                          {canManageWards && (
                             <button
                               onClick={() => handleOpenEdit(ward)}
                               className="p-1.5 text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"

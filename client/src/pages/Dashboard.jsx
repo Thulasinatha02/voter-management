@@ -323,15 +323,34 @@ const Dashboard = () => {
               >
                 <div className="flex items-center gap-3">
                   <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                  <div>
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <span className="font-bold text-slate-800">{act.username}</span>
-                    <span className="text-slate-500"> — </span>
+                    {act.userId?.role === 'superadmin' ? (
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase bg-purple-50 text-purple-700 border border-purple-200">
+                        Admin
+                      </span>
+                    ) : (
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase bg-teal-50 text-teal-700 border border-teal-200">
+                        Field Officer
+                      </span>
+                    )}
+                    <span className="text-slate-400"> — </span>
                     <span className="font-bold text-emerald-700">{act.action}</span>
-                    <span className="text-slate-500"> on </span>
+                    <span className="text-slate-400"> on </span>
                     <span className="font-semibold text-slate-700">{act.entityType}</span>
+                    {act.details?.wardCode && (
+                      <span className="font-mono text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.2 rounded">
+                        ({act.details.wardCode})
+                      </span>
+                    )}
+                    {act.details?.partyCode && (
+                      <span className="font-mono text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.2 rounded">
+                        ({act.details.partyCode})
+                      </span>
+                    )}
                   </div>
                 </div>
-                <div className="text-[11px] text-slate-400 font-medium">
+                <div className="text-[11px] text-slate-400 font-medium shrink-0 ml-2">
                   {new Date(act.createdAt).toLocaleTimeString()}
                 </div>
               </div>

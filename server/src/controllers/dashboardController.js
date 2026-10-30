@@ -135,6 +135,7 @@ const getDashboardSummary = async (req, res, next) => {
     }
 
     const recentActivity = await AuditLog.find(auditQuery)
+      .populate('userId', 'username fullName role')
       .sort({ createdAt: -1 })
       .limit(6);
 

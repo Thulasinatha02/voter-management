@@ -1,5 +1,6 @@
 const { z } = require('zod');
 const Ward = require('../models/Ward');
+const User = require('../models/User');
 const { logAudit } = require('../services/auditService');
 
 // Removed totalPopulationEstimate from manual input schema
@@ -81,6 +82,14 @@ const getWards = async (req, res, next) => {
         },
       },
       {
+        $lookup: {
+          from: 'users',
+          localField: 'createdBy',
+          foreignField: '_id',
+          as: 'creatorInfo',
+        },
+      },
+      {
         $addFields: {
           actualPopulation: {
             $ifNull: [{ $arrayElemAt: ['$memberStats.count', 0] }, 0],
@@ -88,12 +97,30 @@ const getWards = async (req, res, next) => {
           totalFamilies: {
             $ifNull: [{ $arrayElemAt: ['$familyStats.count', 0] }, 0],
           },
+          createdBy: {
+            $arrayElemAt: [
+              {
+                $map: {
+                  input: '$creatorInfo',
+                  as: 'u',
+                  in: {
+                    _id: '$$u._id',
+                    username: '$$u.username',
+                    fullName: '$$u.fullName',
+                    role: '$$u.role',
+                  },
+                },
+              },
+              0,
+            ],
+          },
         },
       },
       {
         $project: {
           memberStats: 0,
           familyStats: 0,
+          creatorInfo: 0,
         },
       },
       { $sort: { wardCode: 1 } },
@@ -139,6 +166,13 @@ const createWard = async (req, res, next) => {
       createdBy: req.user._id,
     });
 
+    // Auto-assignment: If creator is an operator/officer, automatically add this new ward to their assignedWards
+    if (req.user.role !== 'superadmin') {
+      await User.findByIdAndUpdate(req.user._id, {
+        $addToSet: { assignedWards: ward._id },
+      });
+    }
+
     await logAudit({
       req,
       action: 'CREATE',
@@ -148,7 +182,9 @@ const createWard = async (req, res, next) => {
       details: { wardCode: ward.wardCode, wardName: ward.wardName },
     });
 
-    res.status(201).json({ success: true, data: ward });
+    const populatedWard = await Ward.findById(ward._id).populate('createdBy', 'username fullName role');
+
+    res.status(201).json({ success: true, data: populatedWard });
   } catch (error) {
     next(error);
   }
