@@ -463,70 +463,63 @@ const Members = () => {
           </div>
         ) : (
           <>
-            {/* MOBILE CARD VIEW (< md) */}
+            {/* MOBILE ULTRA COMPACT LIST VIEW (< md) */}
             <div className="md:hidden divide-y divide-slate-100">
               {members.map((m) => {
-                const fam = m.familyId || {};
                 return (
-                  <div key={m._id} className="p-4 space-y-2.5 hover:bg-slate-50/60 transition-colors">
-                    <div className="flex items-start justify-between gap-2">
+                  <div
+                    key={m._id}
+                    onClick={() => {
+                      setViewingMember(m);
+                      setIsViewModalOpen(true);
+                    }}
+                    className="p-3 flex items-center justify-between gap-3 hover:bg-slate-50 active:bg-emerald-50/40 transition-colors cursor-pointer"
+                  >
+                    {/* Left: Sl No badge & Name */}
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      <span className="shrink-0 font-mono text-[11px] font-extrabold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-lg">
+                        #{m.serialNo || '—'}
+                      </span>
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          {isAllWards && (
-                            <span className="font-mono text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200">
-                              {m.wardId?.wardCode || 'WARD'}
-                            </span>
-                          )}
-                          <span className="px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 font-semibold text-[11px] text-slate-700">
-                            Booth {m.boothNo ? m.boothNo.replace(/^Booth\s*/i, '') : '—'} • Sl #{m.serialNo || '—'}
-                          </span>
-                        </div>
-                        <h3 className="font-bold text-slate-900 text-sm mt-1.5 truncate">{m.fullName}</h3>
-                        <p className="text-xs text-slate-500 truncate">
-                          {m.fatherOrHusbandName ? `S/o or W/o: ${m.fatherOrHusbandName}` : ''}
+                        <h3 className="font-bold text-slate-900 text-xs truncate">
+                          {m.fullName}
+                        </h3>
+                        <p className="text-[10px] text-slate-400 font-medium truncate">
+                          {m.boothNo ? `Booth ${m.boothNo.replace(/^Booth\s*/i, '')}` : ''}
+                          {m.voterId ? ` • ${m.voterId}` : ''}
                         </p>
-                      </div>
-
-                      <div className="flex items-center gap-1 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setViewingMember(m);
-                            setIsViewModalOpen(true);
-                          }}
-                          className="p-1.5 text-teal-600 hover:text-teal-700 hover:bg-teal-50 rounded-lg transition-colors"
-                          title="View Details"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEdit(m)}
-                          className="p-1.5 text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
-                          title="Edit"
-                        >
-                          <Edit2 className="w-4 h-4 text-emerald-600" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteMember(m)}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-4 h-4 text-rose-500" />
-                        </button>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 pt-1 border-t border-slate-100">
-                      <div>
-                        <span className="text-[10px] text-slate-400 block">Voter ID (EPIC)</span>
-                        <span className="font-mono font-bold text-emerald-700">{m.voterId || 'Pending'}</span>
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-slate-400 block">Gender & Age</span>
-                        <span className="capitalize">{m.gender} • {m.age ?? '—'} yrs</span>
-                      </div>
+                    {/* Right: Actions */}
+                    <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setViewingMember(m);
+                          setIsViewModalOpen(true);
+                        }}
+                        className="p-1.5 text-teal-600 hover:text-teal-700 hover:bg-teal-50 rounded-lg transition-colors active:scale-95"
+                        title="View Full Details"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEdit(m)}
+                        className="p-1.5 text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors active:scale-95"
+                        title="Edit"
+                      >
+                        <Edit2 className="w-4 h-4 text-emerald-600" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteMember(m)}
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors active:scale-95"
+                        title="Delete"
+                      >
+                        <Trash2 className="w-4 h-4 text-rose-500" />
+                      </button>
                     </div>
                   </div>
                 );
@@ -582,11 +575,11 @@ const Members = () => {
                           <div className="font-bold text-slate-900 text-sm">
                             {m.fullName}
                           </div>
-                          {m.fatherOrHusbandName && (
+                          {/* {m.fatherOrHusbandName && (
                             <div className="text-[11px] text-slate-400 font-medium">
                               S/o / W/o: {m.fatherOrHusbandName}
                             </div>
-                          )}
+                          )} */}
                         </td>
                         <td className="py-3.5 px-3 text-center capitalize text-slate-600">
                           {m.gender} • <span className="font-bold text-slate-900">{m.age ?? '—'}</span>
@@ -1117,30 +1110,30 @@ const Members = () => {
 
       {/* View Details Modal */}
       {isViewModalOpen && viewingMember && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto space-y-5">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl border border-slate-100 max-h-[92vh] sm:max-h-[90vh] overflow-y-auto space-y-4 sm:space-y-5">
             {/* Modal Header */}
-            <div className="flex items-start justify-between pb-4 border-b border-slate-100">
-              <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-500 flex items-center justify-center text-white font-black text-lg shadow-md shadow-emerald-500/20">
+            <div className="flex items-start justify-between gap-3 pb-3 sm:pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-500 flex items-center justify-center text-white font-black text-base sm:text-lg shadow-md shadow-emerald-500/20 shrink-0">
                   {viewingMember.fullName ? viewingMember.fullName.charAt(0).toUpperCase() : 'V'}
                 </div>
-                <div>
+                <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h2 className="text-lg font-black text-slate-900">
+                    <h2 className="text-base sm:text-lg font-black text-slate-900 truncate">
                       {viewingMember.fullName}
                     </h2>
                     {viewingMember.voterId ? (
-                      <span className="font-mono text-xs font-extrabold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200">
+                      <span className="font-mono text-[11px] sm:text-xs font-extrabold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 shrink-0">
                         {viewingMember.voterId}
                       </span>
                     ) : (
-                      <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md font-semibold">
+                      <span className="text-[11px] sm:text-xs text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md font-semibold shrink-0">
                         Voter ID Pending
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-slate-400 font-mono mt-0.5">
+                  <p className="text-[11px] sm:text-xs text-slate-400 font-mono mt-0.5 truncate">
                     Member Code: {viewingMember.memberCode} • Ward: {viewingMember.wardId?.wardCode || selectedWard?.wardCode || '—'}
                   </p>
                 </div>
@@ -1150,7 +1143,7 @@ const Members = () => {
                   setIsViewModalOpen(false);
                   setViewingMember(null);
                 }}
-                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-full hover:bg-slate-100 transition-colors"
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-full hover:bg-slate-100 transition-colors shrink-0"
                 title="Close"
               >
                 <X className="w-5 h-5" />
@@ -1158,35 +1151,35 @@ const Members = () => {
             </div>
 
             {/* Content Cards */}
-            <div className="space-y-4 text-xs">
+            <div className="space-y-3 sm:space-y-4 text-xs">
               {/* Card 1: Electoral Coordinates */}
-              <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200/80 space-y-3">
+              <div className="p-3.5 sm:p-4 rounded-2xl bg-slate-50/80 border border-slate-200/80 space-y-2.5">
                 <div className="flex items-center gap-1.5 font-bold text-slate-800 text-xs">
-                  <Shield className="w-4 h-4 text-emerald-600" />
+                  <Shield className="w-4 h-4 text-emerald-600 shrink-0" />
                   <span>Electoral Roll Coordinates</span>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+                  <div className="bg-white p-2.5 rounded-xl border border-slate-100 shadow-2xs">
                     <span className="text-[10px] text-slate-400 block font-semibold uppercase">Booth No</span>
-                    <span className="font-bold text-slate-800">
+                    <span className="font-bold text-slate-800 text-xs">
                       {viewingMember.boothNo || '—'}
                     </span>
                   </div>
-                  <div>
+                  <div className="bg-white p-2.5 rounded-xl border border-slate-100 shadow-2xs">
                     <span className="text-[10px] text-slate-400 block font-semibold uppercase">Serial No</span>
-                    <span className="font-mono font-extrabold text-emerald-700">
-                      {viewingMember.serialNo || '—'}
+                    <span className="font-mono font-extrabold text-emerald-700 text-xs">
+                      #{viewingMember.serialNo || '—'}
                     </span>
                   </div>
-                  <div>
+                  <div className="bg-white p-2.5 rounded-xl border border-slate-100 shadow-2xs">
                     <span className="text-[10px] text-slate-400 block font-semibold uppercase">Voter Status</span>
-                    <span className="font-bold text-slate-800">
+                    <span className="font-bold text-slate-800 text-xs">
                       {viewingMember.voterEligible ? 'Eligible Voter (18+)' : 'Minor (<18)'}
                     </span>
                   </div>
-                  <div>
+                  <div className="bg-white p-2.5 rounded-xl border border-slate-100 shadow-2xs">
                     <span className="text-[10px] text-slate-400 block font-semibold uppercase">Ward Code</span>
-                    <span className="font-bold text-slate-800">
+                    <span className="font-bold text-slate-800 text-xs">
                       {viewingMember.wardId?.wardCode || selectedWard?.wardCode || '—'}
                     </span>
                   </div>
@@ -1194,48 +1187,48 @@ const Members = () => {
               </div>
 
               {/* Card 2: Personal & Demographic Info */}
-              <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200/80 space-y-3">
+              <div className="p-3.5 sm:p-4 rounded-2xl bg-slate-50/80 border border-slate-200/80 space-y-2.5">
                 <div className="flex items-center gap-1.5 font-bold text-slate-800 text-xs">
-                  <Users className="w-4 h-4 text-emerald-600" />
+                  <Users className="w-4 h-4 text-emerald-600 shrink-0" />
                   <span>Personal & Demographics</span>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  <div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 sm:gap-3">
+                  <div className="bg-white p-2.5 rounded-xl border border-slate-100 shadow-2xs">
                     <span className="text-[10px] text-slate-400 block font-semibold uppercase">Father / Husband Name</span>
-                    <span className="font-semibold text-slate-800">
+                    <span className="font-semibold text-slate-800 text-xs block truncate" title={viewingMember.fatherOrHusbandName}>
                       {viewingMember.fatherOrHusbandName || '—'}
                     </span>
                   </div>
-                  <div>
+                  <div className="bg-white p-2.5 rounded-xl border border-slate-100 shadow-2xs">
                     <span className="text-[10px] text-slate-400 block font-semibold uppercase">Gender & Age</span>
-                    <span className="font-semibold text-slate-800 capitalize">
+                    <span className="font-semibold text-slate-800 capitalize text-xs">
                       {viewingMember.gender || '—'} • {viewingMember.age ? `${viewingMember.age} yrs` : '—'}
                     </span>
                   </div>
-                  <div>
+                  <div className="bg-white p-2.5 rounded-xl border border-slate-100 shadow-2xs">
                     <span className="text-[10px] text-slate-400 block font-semibold uppercase">Religion</span>
-                    <span className="font-semibold text-slate-800">
+                    <span className="font-semibold text-slate-800 text-xs">
                       {viewingMember.religion || 'Unspecified'}
                     </span>
                   </div>
-                  <div>
-                    <span className="text-[10px] text-slate-400 block font-semibold uppercase">Political Party</span>
-                    <span className="font-bold text-slate-800">
+                  <div className="bg-white p-2.5 rounded-xl border border-slate-100 shadow-2xs sm:col-span-2">
+                    <span className="text-[10px] text-slate-400 block font-semibold uppercase mb-1">Political Party</span>
+                    <div className="font-bold text-slate-800 text-xs">
                       {viewingMember.politicalParty ? (
-                        <span className="inline-block px-2 py-0.5 rounded-md text-[11px] font-extrabold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                        <span className="inline-block px-2.5 py-1 rounded-lg text-xs font-extrabold bg-emerald-50 text-emerald-900 border border-emerald-200 leading-snug break-words">
                           {viewingMember.politicalParty.partyCode} — {viewingMember.politicalParty.partyName}
                         </span>
                       ) : (
-                        <span className="text-slate-500">Independent / None</span>
+                        <span className="text-slate-500 font-medium">Independent / None</span>
                       )}
-                    </span>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-[10px] text-slate-400 block font-semibold uppercase">Contact Phone</span>
-                    <span className="font-mono font-bold text-slate-800 flex items-center gap-1">
+                  <div className="bg-white p-2.5 rounded-xl border border-slate-100 shadow-2xs">
+                    <span className="text-[10px] text-slate-400 block font-semibold uppercase mb-0.5">Contact Phone</span>
+                    <span className="font-mono font-bold text-slate-800 flex items-center gap-1.5 text-xs">
                       {viewingMember.mobilePhone || viewingMember.familyId?.contactPhone ? (
                         <>
-                          <Phone className="w-3 h-3 text-slate-400" />
+                          <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                           <span>{viewingMember.mobilePhone || viewingMember.familyId?.contactPhone}</span>
                         </>
                       ) : (
@@ -1247,42 +1240,42 @@ const Members = () => {
               </div>
 
               {/* Card 3: Residence & Household Details */}
-              <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200/80 space-y-3">
+              <div className="p-3.5 sm:p-4 rounded-2xl bg-slate-50/80 border border-slate-200/80 space-y-2.5">
                 <div className="flex items-center gap-1.5 font-bold text-slate-800 text-xs">
-                  <Home className="w-4 h-4 text-emerald-600" />
+                  <Home className="w-4 h-4 text-emerald-600 shrink-0" />
                   <span>Household & Residence Address</span>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  <div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
+                  <div className="bg-white p-2.5 rounded-xl border border-slate-100 shadow-2xs">
                     <span className="text-[10px] text-slate-400 block font-semibold uppercase">Door / House No</span>
-                    <span className="font-semibold text-slate-800">
+                    <span className="font-semibold text-slate-800 text-xs">
                       {viewingMember.doorNo || viewingMember.familyId?.houseNo || '—'}
                     </span>
                   </div>
-                  <div>
+                  <div className="bg-white p-2.5 rounded-xl border border-slate-100 shadow-2xs">
                     <span className="text-[10px] text-slate-400 block font-semibold uppercase">Locality</span>
-                    <span className="font-semibold text-slate-800">
+                    <span className="font-semibold text-slate-800 text-xs block truncate" title={viewingMember.familyId?.locality}>
                       {viewingMember.familyId?.locality || '—'}
                     </span>
                   </div>
-                  <div>
-                    <span className="text-[10px] text-slate-400 block font-semibold uppercase">Residence Status</span>
-                    <span className="font-bold">
+                  <div className="bg-white p-2.5 rounded-xl border border-slate-100 shadow-2xs">
+                    <span className="text-[10px] text-slate-400 block font-semibold uppercase mb-0.5">Residence Status</span>
+                    <span className="font-bold text-xs">
                       {viewingMember.residenceStatus === 'out' ? (
-                        <span className="text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md text-[10px]">
+                        <span className="text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md text-[10px] inline-block">
                           Abroad / NRI (OUT){viewingMember.foreignCountry ? ` • ${viewingMember.foreignCountry}` : ''}
                         </span>
                       ) : (
-                        <span className="text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md text-[10px]">
+                        <span className="text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md text-[10px] inline-block">
                           Local Resident (IN)
                         </span>
                       )}
                     </span>
                   </div>
-                  <div className="col-span-2 sm:col-span-3 pt-2 border-t border-slate-200/60 flex items-center justify-between">
-                    <div>
+                  <div className="sm:col-span-3 p-3 bg-white rounded-xl border border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="min-w-0">
                       <span className="text-[10px] text-slate-400 block font-semibold uppercase">Associated Family Unit</span>
-                      <span className="font-bold text-slate-800">
+                      <span className="font-bold text-slate-800 text-xs truncate block">
                         {viewingMember.familyId?.familyCode || '—'} 
                         {viewingMember.familyId?.headOfFamilyName ? ` • Head: ${viewingMember.familyId.headOfFamilyName}` : ''}
                       </span>
@@ -1290,10 +1283,10 @@ const Members = () => {
                     {viewingMember.familyId?._id && (
                       <Link
                         to={`/families/${viewingMember.familyId._id}`}
-                        className="inline-flex items-center gap-1 text-emerald-700 hover:text-emerald-800 font-bold hover:underline"
+                        className="inline-flex items-center gap-1 text-emerald-700 hover:text-emerald-800 font-bold hover:underline shrink-0 text-xs"
                       >
                         <span>View Family</span>
-                        <ExternalLink className="w-3 h-3" />
+                        <ExternalLink className="w-3.5 h-3.5" />
                       </Link>
                     )}
                   </div>
@@ -1302,7 +1295,7 @@ const Members = () => {
             </div>
 
             {/* Modal Footer */}
-            <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+            <div className="flex items-center justify-between gap-3 pt-3 sm:pt-4 border-t border-slate-100">
               <button
                 type="button"
                 onClick={() => {
@@ -1311,10 +1304,10 @@ const Members = () => {
                   setViewingMember(null);
                   handleOpenEdit(target);
                 }}
-                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-all"
+                className="inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-all"
               >
                 <Edit2 className="w-3.5 h-3.5" />
-                <span>Edit This Voter</span>
+                <span>Edit Voter</span>
               </button>
 
               <button

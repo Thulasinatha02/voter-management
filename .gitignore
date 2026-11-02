@@ -1,3 +1,12 @@
 node_modules/
 dist/
+build/
+
+# Ignore all environment files across root and all subdirectories
 .env
+.env*
+*.env
+**/.env
+**/.env*
+server/.env
+client/.env.local
