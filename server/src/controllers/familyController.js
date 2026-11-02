@@ -236,7 +236,7 @@ const createFamily = async (req, res, next) => {
       familyLabel: familyLabel || `${headOfFamilyName}'s Household`,
       houseNo,
       street,
-      locality: locality || ward.locality,
+      locality: locality || '',
       landmark,
       pincode,
       contactPhone,

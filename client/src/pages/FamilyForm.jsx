@@ -37,7 +37,7 @@ const FamilyForm = () => {
   const [familyLabel, setFamilyLabel] = useState('');
   const [houseNo, setHouseNo] = useState('');
   const [street, setStreet] = useState('');
-  const [locality, setLocality] = useState(selectedWard?.locality || '');
+  const [locality, setLocality] = useState('');
   const [landmark, setLandmark] = useState('');
   const [pincode, setPincode] = useState('');
   const [contactPhone, setContactPhone] = useState('');
