@@ -89,7 +89,7 @@ const Dashboard = () => {
           <p className="text-xs text-slate-500 mt-1">
             {isAllWards 
               ? `Aggregated analytics across all ${data?.wardBreakdown?.length || wards.length} administrative wards` 
-              : `${selectedWard?.locality || 'All sectors'} | Pop: ${selectedWard?.totalPopulationEstimate?.toLocaleString() || 'N/A'}`
+              : `${selectedWard?.zone ? `${selectedWard.zone} • ${selectedWard.district || 'Metro'}` : (selectedWard?.district || 'All sectors')} | Pop: ${selectedWard?.totalPopulationEstimate?.toLocaleString() || 'N/A'}`
             }
           </p>
         </div>
@@ -213,7 +213,7 @@ const Dashboard = () => {
                       {w.wardName}
                     </h3>
                     <p className="text-[11px] text-slate-400 truncate mb-3">
-                      {w.locality || w.district || 'Metro Sector'}
+                      {w.zone ? `${w.zone} • ${w.district || 'Metro'}` : (w.district || 'Metro Sector')}
                     </p>
 
                     <div className="grid grid-cols-2 gap-2 py-2 border-y border-slate-200/60 text-xs mb-3">

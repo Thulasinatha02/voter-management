@@ -29,7 +29,6 @@ const Wards = () => {
   const [formData, setFormData] = useState({
     wardCode: '',
     wardName: '',
-    locality: '',
     district: '',
     zone: '',
     isActive: true,
@@ -59,7 +58,6 @@ const Wards = () => {
     setFormData({
       wardCode: '',
       wardName: '',
-      locality: '',
       district: '',
       zone: '',
       isActive: true,
@@ -72,7 +70,6 @@ const Wards = () => {
     setFormData({
       wardCode: ward.wardCode,
       wardName: ward.wardName,
-      locality: ward.locality || '',
       district: ward.district || '',
       zone: ward.zone || '',
       isActive: ward.isActive ?? true,
@@ -261,8 +258,8 @@ const Wards = () => {
                   </div>
 
                   <div className="text-xs text-slate-500 flex flex-wrap gap-x-4 gap-y-1">
-                    <div>Locality: <span className="font-semibold text-slate-700">{ward.locality || '—'}</span></div>
                     <div>Zone: <span className="font-semibold text-slate-700">{ward.zone || 'N/A'}</span></div>
+                    {ward.district && <div>District: <span className="font-semibold text-slate-700">{ward.district}</span></div>}
                     <div>Families: <span className="font-bold text-emerald-700">{ward.totalFamilies || 0}</span></div>
                   </div>
                 </div>
@@ -276,7 +273,6 @@ const Wards = () => {
                   <tr className="border-b border-slate-200/70 bg-slate-50/60 text-slate-500 font-bold uppercase tracking-wider">
                     <th className="py-3 px-4">{t('wards.wardCode')}</th>
                     <th className="py-3 px-4">{t('wards.wardName')}</th>
-                    <th className="py-3 px-4">Locality / Area</th>
                     <th className="py-3 px-4">{t('wards.zone')} & {t('wards.district')}</th>
                     <th className="py-3 px-4 text-center">Registered Families</th>
                     <th className="py-3 px-4 text-right">Live Registered Population</th>
@@ -293,9 +289,6 @@ const Wards = () => {
                       </td>
                       <td className="py-3.5 px-4 font-semibold text-slate-900">
                         {ward.wardName}
-                      </td>
-                      <td className="py-3.5 px-4 text-slate-600 font-medium">
-                        {ward.locality || '—'}
                       </td>
                       <td className="py-3.5 px-4 text-slate-500 font-medium">
                         {ward.zone || 'Zone N/A'} {ward.district ? `(${ward.district})` : ''}
@@ -425,16 +418,6 @@ const Wards = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Locality / Area</label>
-                  <input
-                    type="text"
-                    value={formData.locality}
-                    onChange={(e) => setFormData({ ...formData, locality: e.target.value })}
-                    placeholder="e.g. Lake View"
-                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:border-emerald-500 focus:bg-white font-medium"
-                  />
-                </div>
-                <div>
                   <label className="block font-bold text-slate-700 mb-1">{t('wards.zone')}</label>
                   <input
                     type="text"
@@ -444,17 +427,16 @@ const Wards = () => {
                     className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:border-emerald-500 focus:bg-white font-medium"
                   />
                 </div>
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">{t('wards.district')}</label>
-                <input
-                  type="text"
-                  value={formData.district}
-                  onChange={(e) => setFormData({ ...formData, district: e.target.value })}
-                  placeholder="e.g. Central Metro"
-                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:border-emerald-500 focus:bg-white font-medium"
-                />
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">{t('wards.district')}</label>
+                  <input
+                    type="text"
+                    value={formData.district}
+                    onChange={(e) => setFormData({ ...formData, district: e.target.value })}
+                    placeholder="e.g. Central Metro"
+                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:border-emerald-500 focus:bg-white font-medium"
+                  />
+                </div>
               </div>
 
               {/* Informative notice explaining live auto-calculation */}
